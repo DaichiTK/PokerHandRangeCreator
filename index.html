@@ -428,11 +428,21 @@
     }
 
     @media (max-width: 700px) {
-      :root { --cell-size: min(6.8vw, 42px); }
+      .app {
+        width: 100%;
+        padding: 8px;
+      }
 
-      .app { padding: 10px; }
-      .range-card { padding: 10px; }
-      .scenario-card { padding: 14px; }
+      .range-card {
+        width: 100%;
+        min-width: 0;
+        padding: 8px;
+        overflow: hidden;
+      }
+
+      .scenario-card {
+        padding: 14px;
+      }
 
       .scenario-main,
       .detail-fields {
@@ -444,8 +454,44 @@
         justify-content: flex-start;
       }
 
-      .side { grid-template-columns: 1fr; }
-      .header { flex-direction: column; }
+      .grid-wrap {
+        display: block;
+        width: 100%;
+        min-width: 0;
+        overflow: hidden;
+      }
+
+      .range-grid {
+        width: 100%;
+        min-width: 0;
+        grid-template-columns: repeat(13, minmax(0, 1fr));
+        grid-template-rows: repeat(13, auto);
+        gap: 2px;
+        padding: 2px;
+      }
+
+      .hand-cell {
+        width: 100%;
+        min-width: 0;
+        aspect-ratio: 1 / 1;
+        border-radius: 5px;
+        font-size: clamp(8px, 2.65vw, 12px);
+        line-height: 1;
+      }
+
+      .freq {
+        right: 1px;
+        bottom: 0;
+        font-size: 7px;
+      }
+
+      .side {
+        grid-template-columns: 1fr;
+      }
+
+      .header {
+        flex-direction: column;
+      }
     }
   </style>
 </head>
@@ -691,9 +737,12 @@
       const data = rangeData[hand];
       cell.dataset.action = data.action;
       const freqEl = cell.querySelector(".freq");
-      freqEl.textContent = data.action !== "fold" && data.frequency < 100
-        ? `${data.frequency}%`
-        : "";
+      freqEl.textContent =
+        !["unset", "fold"].includes(data.action) &&
+        data.frequency > 0 &&
+        data.frequency < 100
+          ? `${data.frequency}%`
+          : "";
       cell.title = `${hand}: ${data.action} ${data.frequency}%`;
     }
 
