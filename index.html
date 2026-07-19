@@ -1,647 +1,435 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ja">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Poker Range Builder</title>
-  <style>
-    :root {
-      --bg: #0f172a;
-      --panel: #111827;
-      --panel-2: #1f2937;
-      --line: #334155;
-      --text: #f8fafc;
-      --muted: #94a3b8;
-      --accent: #38bdf8;
-      --unset: #111827;
-      --fold: #3b82f6;
-      --open: #ef4444;
-      --call: #22c55e;
-      --raise: #ef4444;
-      --mix: #ef4444;
-      --cell-size: min(5.6vw, 52px);
-    }
-
-    * { box-sizing: border-box; }
-
-    body {
-      margin: 0;
-      background: linear-gradient(135deg, #020617, var(--bg));
-      color: var(--text);
-      font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      min-height: 100vh;
-    }
-
-    button, input, select, textarea {
-      font: inherit;
-    }
-
-    .app {
-      width: min(1500px, 100%);
-      margin: 0 auto;
-      padding: 20px;
-    }
-
-    .version-bar {
-      width: 100%;
-      margin-bottom: 8px;
-      color: var(--muted);
-      font-size: 12px;
-      font-weight: 700;
-      letter-spacing: .04em;
-      text-align: right;
-    }
-
-    /* 各機能セクションは外枠で囲まず、余白だけで区切る */
-    .scenario-card,
-    .range-card,
-    .side > .card {
-      background: transparent;
-      border: 0;
-      border-radius: 0;
-      box-shadow: none;
-    }
-
-    .scenario-card,
-    .range-card,
-    .side > .card {
-      padding-left: 0;
-      padding-right: 0;
-    }
-
-    .side > .card + .card {
-      margin-top: 8px;
-    }
-
-    .header {
-      display: flex;
-      align-items: flex-start;
-      justify-content: space-between;
-      gap: 16px;
-      margin-bottom: 16px;
-    }
-
-    h1 {
-      font-size: clamp(24px, 3vw, 36px);
-      margin: 0 0 6px;
-    }
-
-    .subtitle {
-      margin: 0;
-      color: var(--muted);
-    }
-
-    .layout {
-      display: grid;
-      grid-template-columns: minmax(620px, 1fr) minmax(300px, 380px);
-      gap: 18px;
-      align-items: start;
-    }
-
-    .scenario-card {
-      padding: 16px 18px;
-      margin-bottom: 18px;
-    }
-
-    .scenario-main {
-      display: grid;
-      grid-template-columns: minmax(220px, .8fr) minmax(320px, 1.4fr) auto;
-      gap: 12px;
-      align-items: end;
-    }
-
-    .scenario-main .field {
-      margin-bottom: 0;
-    }
-
-    .scenario-actions {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      align-items: center;
-      justify-content: flex-end;
-    }
-
-    .detail-disclosure {
-      margin-top: 12px;
-      border-top: 1px solid var(--line);
-      padding-top: 10px;
-    }
-
-    .detail-disclosure summary {
-      width: fit-content;
-      cursor: pointer;
-      color: var(--text);
-      font-weight: 800;
-      list-style: none;
-      user-select: none;
-      padding: 7px 10px;
-      border-radius: 8px;
-      border: 1px solid var(--line);
-      background: var(--panel-2);
-    }
-
-    .detail-disclosure summary::-webkit-details-marker {
-      display: none;
-    }
-
-    .detail-disclosure summary::after {
-      content: "▼";
-      display: inline-block;
-      margin-left: 8px;
-      color: var(--muted);
-      font-size: 11px;
-      transition: transform .15s ease;
-    }
-
-    .detail-disclosure[open] summary::after {
-      transform: rotate(180deg);
-    }
-
-    .detail-fields {
-      display: grid;
-      grid-template-columns: minmax(180px, .45fr) minmax(280px, 1.55fr);
-      gap: 12px;
-      margin-top: 12px;
-    }
-
-    .detail-fields .field {
-      margin-bottom: 0;
-    }
-
-    .detail-fields textarea {
-      min-height: 76px;
-    }
-
-    .card {
-      background: rgba(17, 24, 39, 0.94);
-      border: 1px solid var(--line);
-      border-radius: 16px;
-      box-shadow: 0 18px 50px rgba(0,0,0,.3);
-    }
-
-    .range-card {
-      padding: 18px;
-      overflow: auto;
-    }
-
-    .toolbar {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-      margin-bottom: 14px;
-    }
-
-    .tool-btn, .action-btn, .secondary-btn {
-      border: 1px solid var(--line);
-      color: var(--text);
-      background: var(--panel-2);
-      border-radius: 10px;
-      padding: 9px 12px;
-      cursor: pointer;
-      transition: .15s ease;
-      font-weight: 700;
-    }
-
-    .tool-btn:hover, .action-btn:hover, .secondary-btn:hover {
-      transform: translateY(-1px);
-      border-color: var(--accent);
-    }
-
-    .action-btn.active {
-      outline: 3px solid rgba(255,255,255,.15);
-      border-color: white;
-    }
-
-    .action-btn[data-action="fold"] { background: var(--fold); }
-    .action-btn[data-action="open"] { background: var(--open); }
-    .action-btn[data-action="call"] { background: var(--call); color: #ffffff; }
-    .action-btn[data-action="raise"] { background: var(--raise); }
-    .action-btn[data-action="mix_raise_call"] {
-      background: linear-gradient(110deg, var(--raise) 0 50%, var(--call) 50% 100%);
-    }
-    .action-btn[data-action="mix_raise_fold"] {
-      background: linear-gradient(110deg, var(--raise) 0 50%, var(--fold) 50% 100%);
-    }
-    .action-btn[data-action="mix_call_fold"] {
-      background: linear-gradient(110deg, var(--call) 0 50%, var(--fold) 50% 100%);
-    }
-
-    .grid-wrap {
-      display: inline-block;
-      user-select: none;
-      touch-action: none;
-    }
-
-    .range-grid {
-      display: grid;
-      grid-template-columns: repeat(13, var(--cell-size));
-      grid-template-rows: repeat(13, var(--cell-size));
-      gap: 3px;
-      padding: 3px;
-      background: #020617;
-      border-radius: 12px;
-      border: 1px solid var(--line);
-    }
-
-    .hand-cell {
-      position: relative;
-      border: 1px solid #475569;
-      border-radius: 7px;
-      background: var(--unset);
-      color: #f8fafc;
-      display: grid;
-      place-items: center;
-      font-size: clamp(10px, 1.2vw, 14px);
-      font-weight: 800;
-      cursor: pointer;
-      transition: transform .08s ease, filter .1s ease;
-      overflow: hidden;
-    }
-
-    .hand-cell:hover {
-      filter: brightness(1.15);
-      transform: scale(1.03);
-      z-index: 2;
-    }
-
-    .hand-cell.selected {
-      outline: 3px solid white;
-      outline-offset: -3px;
-    }
-
-    .hand-cell[data-action="unset"] { background: var(--unset); }
-    .hand-cell[data-action="fold"] { background: var(--fold); }
-    .hand-cell[data-action="open"] { background: var(--open); }
-    .hand-cell[data-action="call"] { background: var(--call); color: #ffffff; }
-    .hand-cell[data-action="raise"] { background: var(--raise); }
-    .hand-cell[data-action="mix_raise_call"] {
-      background: linear-gradient(135deg, var(--raise) 0 50%, var(--call) 50% 100%);
-    }
-    .hand-cell[data-action="mix_raise_fold"] {
-      background: linear-gradient(135deg, var(--raise) 0 50%, var(--fold) 50% 100%);
-    }
-    .hand-cell[data-action="mix_call_fold"] {
-      background: linear-gradient(135deg, var(--call) 0 50%, var(--fold) 50% 100%);
-    }
-
-    .freq {
-      position: absolute;
-      right: 3px;
-      bottom: 1px;
-      font-size: 9px;
-      opacity: .9;
-    }
-
-    .side {
-      display: grid;
-      gap: 14px;
-    }
-
-    .side .card {
-      padding: 16px;
-    }
-
-    .section-title {
-      margin: 0 0 12px;
-      font-size: 17px;
-    }
-
-    label {
-      display: block;
-      font-size: 13px;
-      color: var(--muted);
-      margin-bottom: 5px;
-    }
-
-    input[type="text"], input[type="number"], select, textarea {
-      width: 100%;
-      background: #0b1220;
-      color: var(--text);
-      border: 1px solid var(--line);
-      border-radius: 9px;
-      padding: 10px;
-      outline: none;
-    }
-
-    input:focus, select:focus, textarea:focus {
-      border-color: var(--accent);
-      box-shadow: 0 0 0 3px rgba(56,189,248,.12);
-    }
-
-    textarea {
-      min-height: 96px;
-      resize: vertical;
-    }
-
-    .field {
-      margin-bottom: 12px;
-    }
-
-    .button-row {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-    }
-
-    .primary-btn {
-      border: 0;
-      color: #082f49;
-      background: var(--accent);
-      border-radius: 10px;
-      padding: 10px 14px;
-      cursor: pointer;
-      font-weight: 800;
-    }
-
-    .danger-btn {
-      border: 1px solid #7f1d1d;
-      color: #fecaca;
-      background: #450a0a;
-      border-radius: 10px;
-      padding: 10px 14px;
-      cursor: pointer;
-      font-weight: 800;
-    }
-
-    .stats {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 9px;
-    }
-
-    .stat {
-      border: 1px solid var(--line);
-      background: #0b1220;
-      border-radius: 10px;
-      padding: 10px;
-    }
-
-    .stat strong {
-      display: block;
-      font-size: 22px;
-      margin-top: 2px;
-    }
-
-    .legend {
-      display: grid;
-      gap: 7px;
-      margin-top: 12px;
-    }
-
-    .legend-item {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      color: var(--muted);
-      font-size: 13px;
-    }
-
-    .dot {
-      width: 14px;
-      height: 14px;
-      border-radius: 4px;
-    }
-
-    .saved-list {
-      display: grid;
-      gap: 8px;
-      max-height: 230px;
-      overflow: auto;
-    }
-
-    .saved-item {
-      display: grid;
-      grid-template-columns: 1fr auto auto;
-      gap: 6px;
-      align-items: center;
-      border: 1px solid var(--line);
-      background: #0b1220;
-      border-radius: 10px;
-      padding: 8px;
-    }
-
-    .saved-item-name {
-      overflow: hidden;
-      white-space: nowrap;
-      text-overflow: ellipsis;
-      font-weight: 700;
-    }
-
-    .mini-btn {
-      border: 1px solid var(--line);
-      background: var(--panel-2);
-      color: var(--text);
-      border-radius: 7px;
-      padding: 5px 8px;
-      cursor: pointer;
-      font-size: 12px;
-    }
-
-    .empty {
-      color: var(--muted);
-      font-size: 13px;
-      padding: 8px 0;
-    }
-
-    .status {
-      min-height: 22px;
-      margin-top: 10px;
-      color: #7dd3fc;
-      font-size: 13px;
-    }
-
-    @media (max-width: 1050px) {
-      .scenario-main {
-        grid-template-columns: 1fr 1fr;
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+    <title>Poker Range Builder</title>
+    <style>
+      :root {
+        --bg: #0f172a;
+        --panel: #111827;
+        --panel2: #1f2937;
+        --line: #334155;
+        --text: #f8fafc;
+        --muted: #94a3b8;
+        --accent: #38bdf8;
+        --unset: #111827;
+        --fold: #3b82f6;
+        --raise: #ef4444;
+        --call: #22c55e;
+        --cell: min(5.6vw, 52px);
       }
-
-      .scenario-actions {
-        grid-column: 1 / -1;
-        justify-content: flex-start;
+      * {
+        box-sizing: border-box;
       }
-
-      .layout {
-        grid-template-columns: 1fr;
-      }
-
-      .side {
-        grid-template-columns: repeat(2, minmax(280px, 1fr));
-      }
-    }
-
-    @media (max-width: 700px) {
-      html,
       body {
-        width: 100%;
-        max-width: 100%;
-        overflow-x: hidden;
+        margin: 0;
+        min-height: 100vh;
+        background: linear-gradient(135deg, #020617, var(--bg));
+        color: var(--text);
+        font-family:
+          Inter,
+          system-ui,
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          sans-serif;
       }
-
+      button,
+      input,
+      select,
+      textarea {
+        font: inherit;
+      }
       .app {
-        width: 100%;
-        max-width: 100%;
-        padding: 8px;
+        width: min(1500px, 100%);
+        margin: auto;
+        padding: 20px;
       }
-
-      .scenario-card,
-      .range-card,
-      .side > .card {
-        width: 100%;
-        max-width: 100%;
-        padding-left: 0;
-        padding-right: 0;
-        background: transparent;
-        border: 0;
-        border-radius: 0;
-        box-shadow: none;
+      .version {
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 700;
+        text-align: right;
+        margin-bottom: 8px;
       }
-
-      .version-bar {
-        padding: 0 2px;
-        margin-bottom: 6px;
-        font-size: 11px;
+      .header {
+        margin-bottom: 16px;
       }
-
-      .range-card {
-        width: calc(100vw - 16px);
-        max-width: calc(100vw - 16px);
-        min-width: 0;
-        padding: 0;
-        overflow: visible;
-        background: transparent;
-        border: 0;
-        border-radius: 0;
-        box-shadow: none;
+      h1 {
+        font-size: clamp(24px, 3vw, 36px);
+        margin: 0 0 6px;
       }
-
-      .range-card .toolbar {
-        padding: 0;
-        margin: 0 0 12px;
+      .subtitle {
+        margin: 0;
+        color: var(--muted);
+      }
+      .scenario {
+        padding: 16px 0;
+        margin-bottom: 18px;
+      }
+      .scenario-main {
+        display: grid;
+        grid-template-columns: minmax(220px, 1fr) minmax(140px, 220px) auto;
+        gap: 12px;
+        align-items: end;
+      }
+      .actions,
+      .toolbar,
+      .button-row {
+        display: flex;
+        flex-wrap: wrap;
         gap: 8px;
       }
-
-      .scenario-card {
-        padding: 14px;
+      .actions {
+        justify-content: flex-end;
       }
-
-      .scenario-main,
-      .detail-fields {
-        grid-template-columns: 1fr;
+      .field {
+        margin-bottom: 12px;
       }
-
-      .scenario-actions {
-        grid-column: auto;
-        justify-content: flex-start;
+      .scenario-main .field,
+      .detail-grid .field {
+        margin-bottom: 0;
       }
-
-      .grid-wrap {
+      label {
         display: block;
-        width: calc(100vw - 16px);
-        max-width: calc(100vw - 16px);
-        min-width: 0;
-        margin: 0;
-        padding: 0;
-        overflow: visible;
+        color: var(--muted);
+        font-size: 13px;
+        margin-bottom: 5px;
       }
-
-      .range-grid {
-        width: calc(100vw - 16px);
-        max-width: calc(100vw - 16px);
-        min-width: 0;
-        grid-template-columns: repeat(13, minmax(0, 1fr));
-        grid-template-rows: repeat(13, auto);
-        gap: 0;
-        padding: 0;
-        background: transparent;
-        border: 0;
-        border-radius: 0;
-      }
-
-      .hand-cell {
+      input,
+      select,
+      textarea {
         width: 100%;
-        min-width: 0;
-        aspect-ratio: 1 / 1;
-        border-width: 1px 1px 0 0;
-        border-radius: 0;
-        font-size: clamp(7px, 2.35vw, 11px);
-        line-height: 1;
+        background: #0b1220;
+        color: var(--text);
+        border: 1px solid var(--line);
+        border-radius: 9px;
+        padding: 10px;
+        outline: none;
       }
-
-      .hand-cell:nth-child(13n) {
-        border-right-width: 1px;
+      input:focus,
+      select:focus,
+      textarea:focus {
+        border-color: var(--accent);
+        box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.12);
       }
-
-      .hand-cell:nth-last-child(-n + 13) {
-        border-bottom-width: 1px;
+      textarea {
+        min-height: 76px;
+        resize: vertical;
       }
-
+      details {
+        margin-top: 12px;
+        border-top: 1px solid var(--line);
+        padding-top: 10px;
+      }
+      summary {
+        width: max-content;
+        cursor: pointer;
+        font-weight: 800;
+        padding: 7px 10px;
+        border-radius: 8px;
+        border: 1px solid var(--line);
+        background: var(--panel2);
+      }
+      .detail-grid {
+        display: grid;
+        grid-template-columns: minmax(180px, 0.45fr) minmax(280px, 1.55fr);
+        gap: 12px;
+        margin-top: 12px;
+      }
+      .layout {
+        display: grid;
+        grid-template-columns: minmax(620px, 1fr) minmax(300px, 380px);
+        gap: 18px;
+        align-items: start;
+      }
+      .range {
+        padding: 18px 0;
+        overflow: auto;
+      }
+      .toolbar {
+        margin-bottom: 14px;
+      }
+      .btn,
+      .action-btn,
+      .mini {
+        border: 1px solid var(--line);
+        color: var(--text);
+        background: var(--panel2);
+        border-radius: 10px;
+        padding: 9px 12px;
+        cursor: pointer;
+        font-weight: 700;
+      }
+      .primary {
+        border: 0;
+        color: #082f49;
+        background: var(--accent);
+        border-radius: 10px;
+        padding: 10px 14px;
+        cursor: pointer;
+        font-weight: 800;
+      }
+      .action-btn.active {
+        outline: 3px solid rgba(255, 255, 255, 0.15);
+        border-color: white;
+      }
+      .action-btn[data-action="raise"] {
+        background: var(--raise);
+      }
+      .action-btn[data-action="call"] {
+        background: var(--call);
+      }
+      .action-btn[data-action="fold"] {
+        background: var(--fold);
+      }
+      .action-btn[data-action="mix_raise_call"] {
+        background: linear-gradient(
+          110deg,
+          var(--raise) 0 50%,
+          var(--call) 50% 100%
+        );
+      }
+      .action-btn[data-action="mix_raise_fold"] {
+        background: linear-gradient(
+          110deg,
+          var(--raise) 0 50%,
+          var(--fold) 50% 100%
+        );
+      }
+      .action-btn[data-action="mix_call_fold"] {
+        background: linear-gradient(
+          110deg,
+          var(--call) 0 50%,
+          var(--fold) 50% 100%
+        );
+      }
+      .grid-wrap {
+        display: inline-block;
+        user-select: none;
+        touch-action: none;
+      }
+      .range-grid {
+        display: grid;
+        grid-template-columns: repeat(13, var(--cell));
+        grid-template-rows: repeat(13, var(--cell));
+        gap: 3px;
+        padding: 3px;
+        background: #020617;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+      }
+      .hand {
+        position: relative;
+        border: 1px solid #475569;
+        border-radius: 7px;
+        background: var(--unset);
+        color: #fff;
+        display: grid;
+        place-items: center;
+        font-size: clamp(10px, 1.2vw, 14px);
+        font-weight: 800;
+        cursor: pointer;
+        overflow: hidden;
+      }
+      .hand.selected {
+        outline: 3px solid white;
+        outline-offset: -3px;
+      }
+      .hand[data-action="fold"] {
+        background: var(--fold);
+      }
+      .hand[data-action="call"] {
+        background: var(--call);
+      }
+      .hand[data-action="raise"],
+      .hand[data-action="open"] {
+        background: var(--raise);
+      }
+      .hand[data-action="mix_raise_call"] {
+        background: linear-gradient(
+          110deg,
+          var(--raise) 0 50%,
+          var(--call) 50% 100%
+        );
+      }
+      .hand[data-action="mix_raise_fold"] {
+        background: linear-gradient(
+          110deg,
+          var(--raise) 0 50%,
+          var(--fold) 50% 100%
+        );
+      }
+      .hand[data-action="mix_call_fold"] {
+        background: linear-gradient(
+          110deg,
+          var(--call) 0 50%,
+          var(--fold) 50% 100%
+        );
+      }
       .freq {
-        right: 1px;
-        bottom: 0;
-        font-size: 7px;
+        position: absolute;
+        right: 3px;
+        bottom: 1px;
+        font-size: 9px;
       }
-
       .side {
-        grid-template-columns: 1fr;
+        display: grid;
+        gap: 14px;
       }
-
-      .header {
-        flex-direction: column;
+      .card {
+        padding: 16px;
+        background: rgba(17, 24, 39, 0.94);
+        border: 1px solid var(--line);
+        border-radius: 16px;
       }
-    }
-  
-    /* Section frame override */
-    .card.scenario-card,
-    .card.range-card,
-    .side > section.card {
-      background: transparent !important;
-      border: none !important;
-      border-radius: 0 !important;
-      box-shadow: none !important;
-    }
-</style>
-</head>
-<body>
-  <main class="app">
-    <div class="version-bar" aria-label="アプリバージョン">Version v1.2.5</div>
-    <header class="header">
-      <div>
+      .section-title {
+        margin: 0 0 12px;
+        font-size: 17px;
+      }
+      .stats {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 9px;
+      }
+      .stat {
+        border: 1px solid var(--line);
+        background: #0b1220;
+        border-radius: 10px;
+        padding: 10px;
+      }
+      .stat strong {
+        display: block;
+        font-size: 22px;
+      }
+      .legend {
+        display: grid;
+        gap: 7px;
+        margin-top: 12px;
+      }
+      .legend-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: var(--muted);
+        font-size: 13px;
+      }
+      .dot {
+        width: 14px;
+        height: 14px;
+        border-radius: 4px;
+      }
+      .saved-list {
+        display: grid;
+        gap: 8px;
+        max-height: 230px;
+        overflow: auto;
+      }
+      .saved-item {
+        display: grid;
+        grid-template-columns: 1fr auto auto;
+        gap: 6px;
+        align-items: center;
+        border: 1px solid var(--line);
+        background: #0b1220;
+        border-radius: 10px;
+        padding: 8px;
+      }
+      .saved-name {
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+        font-weight: 700;
+      }
+      .mini {
+        padding: 5px 8px;
+        font-size: 12px;
+      }
+      .empty {
+        color: var(--muted);
+        font-size: 13px;
+      }
+      .status {
+        min-height: 22px;
+        margin-top: 10px;
+        color: #7dd3fc;
+        font-size: 13px;
+      }
+      @media (max-width: 1050px) {
+        .scenario-main {
+          grid-template-columns: 1fr 1fr;
+        }
+        .actions {
+          grid-column: 1/-1;
+          justify-content: flex-start;
+        }
+        .layout {
+          grid-template-columns: 1fr;
+        }
+        .side {
+          grid-template-columns: repeat(2, minmax(280px, 1fr));
+        }
+      }
+      @media (max-width: 700px) {
+        .app {
+          padding: 8px;
+        }
+        .scenario-main,
+        .detail-grid {
+          grid-template-columns: 1fr;
+        }
+        .actions {
+          grid-column: auto;
+        }
+        .layout {
+          display: block;
+        }
+        .range {
+          padding: 0;
+          overflow: visible;
+        }
+        .range-grid {
+          width: calc(100vw - 16px);
+          grid-template-columns: repeat(13, minmax(0, 1fr));
+          grid-template-rows: repeat(13, auto);
+          gap: 0;
+          padding: 0;
+          background: transparent;
+          border: 0;
+        }
+        .hand {
+          width: 100%;
+          aspect-ratio: 1;
+          border-radius: 0;
+          font-size: clamp(7px, 2.35vw, 11px);
+        }
+        .side {
+          grid-template-columns: 1fr;
+          margin-top: 14px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="app">
+      <div class="version">Version v1.3.0</div>
+      <header class="header">
         <h1>Poker Range Builder</h1>
-        <p class="subtitle">13×13のハンドマトリクスをクリックまたはドラッグしてレンジを作成します。</p>
-      </div>
-    </header>
-
-    <section class="card scenario-card" aria-labelledby="scenarioHeading">
-      <h2 id="scenarioHeading" class="section-title">シチュエーション入力</h2>
-
-      <div class="scenario-main">
-        <div class="field">
-          <label for="rangeName">レンジ名</label>
-          <input id="rangeName" type="text" placeholder="例：BTN Open 2.3bb" />
-        </div>
-
-
-        <div class="scenario-actions">
-          <button class="primary-btn" id="saveBtn">保存</button>
-          <button class="secondary-btn" id="exportPngBtn">PNG出力</button>
-          <button class="secondary-btn" id="exportJsonBtn">JSON出力</button>
-          <button class="secondary-btn" id="importJsonBtn">JSON読込</button>
-          <input id="jsonFileInput" type="file" accept=".json,application/json" hidden />
-        </div>
-      </div>
-
-      <details class="detail-disclosure">
-        <summary>詳細を入力</summary>
-        <div class="detail-fields">
+        <p class="subtitle">
+          13×13のハンドマトリクスをクリックまたはドラッグしてレンジを作成します。
+        </p>
+      </header>
+      <section class="scenario">
+        <h2 class="section-title">シチュエーション入力</h2>
+        <div class="scenario-main">
           <div class="field">
-            <label for="spot">シチュエーション</label>
-            <input id="spot" type="text" placeholder="例：BTN vs BB 3bet" />
+            <label for="rangeName">レンジ名</label
+            ><input id="rangeName" type="text" placeholder="例：Open 2.3bb" />
           </div>
-
           <div class="field">
-            <label for="position">ポジション</label>
-            <select id="position">
+            <label for="position">ポジション</label
+            ><select id="position">
               <option value="">未設定</option>
               <option>UTG</option>
               <option>HJ</option>
@@ -651,549 +439,536 @@
               <option>BB</option>
             </select>
           </div>
-
-          <div class="field">
-            <label for="notes">メモ</label>
-            <textarea id="notes" placeholder="レーキ、スタック、相手傾向など"></textarea>
+          <div class="actions">
+            <button class="primary" id="saveBtn">保存</button
+            ><button class="btn" id="exportPngBtn">PNG出力</button
+            ><button class="btn" id="exportJsonBtn">JSON出力</button
+            ><button class="btn" id="importJsonBtn">JSON読込</button
+            ><input
+              id="jsonFileInput"
+              type="file"
+              accept=".json,application/json"
+              hidden
+            />
           </div>
         </div>
-      </details>
-
-      <div id="status" class="status"></div>
-    </section>
-
-    <div class="layout">
-      <section class="card range-card">
-        <div class="toolbar">
-          <button class="action-btn active" data-action="raise">Bet / Raise</button>
-          <button class="action-btn" data-action="call">Call</button>
-          <button class="action-btn" data-action="mix_raise_call">Raise&nbsp;&nbsp;&nbsp;Call</button>
-          <button class="action-btn" data-action="mix_raise_fold">Raise&nbsp;&nbsp;&nbsp;Fold</button>
-          <button class="action-btn" data-action="mix_call_fold">Call&nbsp;&nbsp;&nbsp;Fold</button>
-          <button class="action-btn" data-action="fold">Fold</button>
-          <button class="tool-btn" id="selectAllBtn">全選択</button>
-          <button class="tool-btn" id="clearAllBtn">全解除</button>
-        </div>
-        <div class="grid-wrap">
-          <div id="rangeGrid" class="range-grid" aria-label="ポーカーハンドレンジ表"></div>
-        </div>
+        <details>
+          <summary>詳細を入力</summary>
+          <div class="detail-grid">
+            <div class="field">
+              <label for="spot">シチュエーション</label
+              ><input id="spot" type="text" placeholder="例：BTN vs BB 3bet" />
+            </div>
+            <div class="field">
+              <label for="notes">メモ</label
+              ><textarea
+                id="notes"
+                placeholder="レーキ、スタック、相手傾向など"
+              ></textarea>
+            </div>
+          </div>
+        </details>
+        <div id="status" class="status"></div>
       </section>
-
-      <aside class="side">
-        <section class="card">
-          <h2 class="section-title">選択セル設定</h2>
-          <div class="field">
-            <label for="frequency">頻度（0〜100%）</label>
-            <input id="frequency" type="number" min="0" max="100" step="1" value="100" />
+      <div class="layout">
+        <section class="range">
+          <div class="toolbar">
+            <button class="action-btn active" data-action="raise">
+              Bet / Raise</button
+            ><button class="action-btn" data-action="call">Call</button
+            ><button class="action-btn" data-action="mix_raise_call">
+              Raise&nbsp;&nbsp;&nbsp;Call</button
+            ><button class="action-btn" data-action="mix_raise_fold">
+              Raise&nbsp;&nbsp;&nbsp;Fold</button
+            ><button class="action-btn" data-action="mix_call_fold">
+              Call&nbsp;&nbsp;&nbsp;Fold</button
+            ><button class="action-btn" data-action="fold">Fold</button
+            ><button class="btn" id="selectAllBtn">全選択</button
+            ><button class="btn" id="clearAllBtn">全解除</button>
           </div>
-          <div class="button-row">
-            <button class="primary-btn" id="applyFrequencyBtn">選択セルへ適用</button>
-            <button class="secondary-btn" id="clearSelectionBtn">選択解除</button>
-          </div>
-          <p class="empty">Shift＋クリックで複数選択できます。スペースキーを押しながらクリック／ドラッグすると未入力へ戻せます。</p>
-        </section>
-
-        <section class="card">
-          <h2 class="section-title">集計</h2>
-          <div class="stats">
-            <div class="stat"><span>コンボ数</span><strong id="comboCount">0</strong></div>
-            <div class="stat"><span>レンジ割合</span><strong id="rangePercent">0.0%</strong></div>
-            <div class="stat"><span>ハンド数</span><strong id="handCount">0</strong></div>
-            <div class="stat"><span>加重コンボ</span><strong id="weightedCombos">0.0</strong></div>
-          </div>
-          <div class="legend">
-            <div class="legend-item"><span class="dot" style="background:var(--open)"></span>Bet / Raise</div>
-            <div class="legend-item"><span class="dot" style="background:var(--call)"></span>Call</div>
-            <div class="legend-item"><span class="dot" style="background:linear-gradient(135deg,var(--raise) 0 50%,var(--call) 50% 100%)"></span>Raise / Call</div>
-            <div class="legend-item"><span class="dot" style="background:linear-gradient(135deg,var(--raise) 0 50%,var(--fold) 50% 100%)"></span>Raise / Fold</div>
-            <div class="legend-item"><span class="dot" style="background:linear-gradient(135deg,var(--call) 0 50%,var(--fold) 50% 100%)"></span>Call / Fold</div>
-            <div class="legend-item"><span class="dot" style="background:var(--fold)"></span>Fold</div>
-            <div class="legend-item"><span class="dot" style="background:var(--unset);border:1px solid #475569"></span>未入力</div>
+          <div class="grid-wrap">
+            <div id="rangeGrid" class="range-grid"></div>
           </div>
         </section>
-
-        <section class="card">
-          <h2 class="section-title">保存済みレンジ</h2>
-          <div id="savedList" class="saved-list"></div>
-        </section>
-      </aside>
-    </div>
-  </main>
-
-  <script>
-    const ranks = ["A","K","Q","J","T","9","8","7","6","5","4","3","2"];
-    const grid = document.getElementById("rangeGrid");
-    const actionButtons = [...document.querySelectorAll(".action-btn")];
-    const selectedHands = new Set();
-    let activeAction = "raise";
-    let isDragging = false;
-    let dragMode = "paint";
-    let isSpacePressed = false;
-    let activePointerId = null;
-    let lastPaintedHand = null;
-    const rangeData = {};
-
-    document.addEventListener("keydown", event => {
-      if (event.code === "Space" && !["INPUT", "TEXTAREA", "SELECT"].includes(document.activeElement?.tagName)) {
-        isSpacePressed = true;
-        event.preventDefault();
-      }
-    });
-
-    document.addEventListener("keyup", event => {
-      if (event.code === "Space") isSpacePressed = false;
-    });
-
-    window.addEventListener("blur", () => {
-      isSpacePressed = false;
-      isDragging = false;
-      activePointerId = null;
-      lastPaintedHand = null;
-    });
-
-    const comboCountFor = hand => {
-      if (hand.length === 2) return 6;
-      if (hand.endsWith("s")) return 4;
-      return 12;
-    };
-
-    const handName = (row, col) => {
-      const r1 = ranks[row];
-      const r2 = ranks[col];
-      if (row === col) return r1 + r2;
-      if (row < col) return r1 + r2 + "s";
-      return r2 + r1 + "o";
-    };
-
-    function createGrid() {
-      for (let row = 0; row < 13; row++) {
-        for (let col = 0; col < 13; col++) {
-          const hand = handName(row, col);
-          rangeData[hand] = { action: "unset", frequency: 0 };
-
-          const cell = document.createElement("button");
-          cell.type = "button";
-          cell.className = "hand-cell";
-          cell.dataset.hand = hand;
-          cell.dataset.action = "unset";
-          cell.innerHTML = `<span>${hand}</span><span class="freq"></span>`;
-
-          cell.addEventListener("pointerdown", event => {
-            event.preventDefault();
-            if (activePointerId !== null) return;
-
-            activePointerId = event.pointerId;
-            isDragging = true;
-            lastPaintedHand = hand;
-            cell.setPointerCapture?.(event.pointerId);
-
-            if (event.shiftKey && event.pointerType === "mouse") {
-              toggleSelection(hand, cell);
-              return;
-            }
-
-            selectedHands.clear();
-            refreshSelectedStyles();
-
-            const currentAction = rangeData[hand].action;
-            const shouldClear = isSpacePressed || currentAction === activeAction;
-            dragMode = shouldClear ? "erase" : "paint";
-            applyAction(hand, shouldClear ? "unset" : activeAction);
-          });
-
-          cell.addEventListener("pointermove", event => {
-            if (!isDragging || event.pointerId !== activePointerId) return;
-            event.preventDefault();
-
-            const target = document.elementFromPoint(event.clientX, event.clientY)?.closest(".hand-cell");
-            const targetHand = target?.dataset.hand;
-            if (!targetHand || targetHand === lastPaintedHand) return;
-
-            lastPaintedHand = targetHand;
-            applyAction(targetHand, dragMode === "erase" || isSpacePressed ? "unset" : activeAction);
-          });
-
-          cell.addEventListener("click", e => e.preventDefault());
-          cell.addEventListener("dblclick", () => {
-            selectedHands.clear();
-            selectedHands.add(hand);
-            refreshSelectedStyles();
-            document.getElementById("frequency").value = rangeData[hand].frequency || 100;
-          });
-
-          grid.appendChild(cell);
+        <aside class="side">
+          <section class="card">
+            <h2 class="section-title">選択セル設定</h2>
+            <div class="field">
+              <label for="frequency">頻度（0〜100%）</label
+              ><input
+                id="frequency"
+                type="number"
+                min="0"
+                max="100"
+                value="100"
+              />
+            </div>
+            <div class="button-row">
+              <button class="primary" id="applyFrequencyBtn">
+                選択セルへ適用</button
+              ><button class="btn" id="clearSelectionBtn">選択解除</button>
+            </div>
+            <p class="empty">
+              Shift＋クリックで複数選択できます。スペースキーを押しながらクリック／ドラッグすると未入力へ戻せます。
+            </p>
+          </section>
+          <section class="card">
+            <h2 class="section-title">集計</h2>
+            <div class="stats">
+              <div class="stat">コンボ数<strong id="comboCount">0</strong></div>
+              <div class="stat">
+                レンジ割合<strong id="rangePercent">0.0%</strong>
+              </div>
+              <div class="stat">ハンド数<strong id="handCount">0</strong></div>
+              <div class="stat">
+                加重コンボ<strong id="weightedCombos">0.0</strong>
+              </div>
+            </div>
+            <div class="legend">
+              <div class="legend-item">
+                <span class="dot" style="background: var(--raise)"></span>Bet /
+                Raise
+              </div>
+              <div class="legend-item">
+                <span class="dot" style="background: var(--call)"></span>Call
+              </div>
+              <div class="legend-item">
+                <span
+                  class="dot"
+                  style="
+                    background: linear-gradient(
+                      110deg,
+                      var(--raise) 0 50%,
+                      var(--call) 50% 100%
+                    );
+                  "
+                ></span
+                >Raise / Call
+              </div>
+              <div class="legend-item">
+                <span
+                  class="dot"
+                  style="
+                    background: linear-gradient(
+                      110deg,
+                      var(--raise) 0 50%,
+                      var(--fold) 50% 100%
+                    );
+                  "
+                ></span
+                >Raise / Fold
+              </div>
+              <div class="legend-item">
+                <span
+                  class="dot"
+                  style="
+                    background: linear-gradient(
+                      110deg,
+                      var(--call) 0 50%,
+                      var(--fold) 50% 100%
+                    );
+                  "
+                ></span
+                >Call / Fold
+              </div>
+              <div class="legend-item">
+                <span class="dot" style="background: var(--fold)"></span>Fold
+              </div>
+            </div>
+          </section>
+          <section class="card">
+            <h2 class="section-title">保存済みレンジ</h2>
+            <div id="savedList" class="saved-list"></div>
+          </section>
+        </aside>
+      </div>
+    </main>
+    <script>
+      const ranks = [
+          "A",
+          "K",
+          "Q",
+          "J",
+          "T",
+          "9",
+          "8",
+          "7",
+          "6",
+          "5",
+          "4",
+          "3",
+          "2",
+        ],
+        grid = document.getElementById("rangeGrid"),
+        buttons = [...document.querySelectorAll(".action-btn")],
+        selected = new Set(),
+        data = {};
+      let active = "raise",
+        drag = false,
+        mode = "paint",
+        space = false,
+        pointer = null,
+        last = null;
+      const handName = (r, c) =>
+        r === c
+          ? ranks[r] + ranks[c]
+          : r < c
+            ? ranks[r] + ranks[c] + "s"
+            : ranks[c] + ranks[r] + "o";
+      const combos = (h) => (h.length === 2 ? 6 : h.endsWith("s") ? 4 : 12);
+      document.addEventListener("keydown", (e) => {
+        if (
+          e.code === "Space" &&
+          !["INPUT", "TEXTAREA", "SELECT"].includes(
+            document.activeElement?.tagName,
+          )
+        ) {
+          space = true;
+          e.preventDefault();
         }
-      }
-    }
-
-    function finishPointerDrag(event) {
-      if (activePointerId !== null && event?.pointerId !== undefined && event.pointerId !== activePointerId) return;
-      isDragging = false;
-      activePointerId = null;
-      lastPaintedHand = null;
-    }
-
-    document.addEventListener("pointerup", finishPointerDrag);
-    document.addEventListener("pointercancel", finishPointerDrag);
-
-    function toggleSelection(hand, cell) {
-      if (selectedHands.has(hand)) selectedHands.delete(hand);
-      else selectedHands.add(hand);
-      refreshSelectedStyles();
-    }
-
-    function refreshSelectedStyles() {
-      document.querySelectorAll(".hand-cell").forEach(cell => {
-        cell.classList.toggle("selected", selectedHands.has(cell.dataset.hand));
       });
-    }
-
-    function applyAction(hand, action) {
-      const freq = action === "unset"
-        ? 0
-        : Number(document.getElementById("frequency").value || 100);
-
-      rangeData[hand] = {
-        action,
-        frequency: Math.max(0, Math.min(100, freq))
-      };
-      renderCell(hand);
-      updateStats();
-    }
-
-    function renderCell(hand) {
-      const cell = document.querySelector(`[data-hand="${hand}"]`);
-      const data = rangeData[hand];
-      cell.dataset.action = data.action;
-      const freqEl = cell.querySelector(".freq");
-      freqEl.textContent =
-        !["unset", "fold"].includes(data.action) &&
-        data.frequency > 0 &&
-        data.frequency < 100
-          ? `${data.frequency}%`
-          : "";
-      cell.title = `${hand}: ${data.action} ${data.frequency}%`;
-    }
-
-    function updateStats() {
-      let rawCombos = 0;
-      let weighted = 0;
-      let hands = 0;
-
-      Object.entries(rangeData).forEach(([hand, data]) => {
-        if (["unset", "fold"].includes(data.action) || data.frequency <= 0) return;
-        const combos = comboCountFor(hand);
-        rawCombos += combos;
-        weighted += combos * data.frequency / 100;
-        hands++;
+      document.addEventListener("keyup", (e) => {
+        if (e.code === "Space") space = false;
       });
-
-      document.getElementById("comboCount").textContent = rawCombos;
-      document.getElementById("weightedCombos").textContent = weighted.toFixed(1);
-      document.getElementById("rangePercent").textContent = `${(weighted / 1326 * 100).toFixed(1)}%`;
-      document.getElementById("handCount").textContent = hands;
-    }
-
-    actionButtons.forEach(btn => {
-      btn.addEventListener("click", () => {
-        activeAction = btn.dataset.action;
-        actionButtons.forEach(b => b.classList.toggle("active", b === btn));
-      });
-    });
-
-    document.getElementById("selectAllBtn").addEventListener("click", () => {
-      Object.keys(rangeData).forEach(hand => selectedHands.add(hand));
-      refreshSelectedStyles();
-    });
-
-    document.getElementById("clearAllBtn").addEventListener("click", () => {
-      Object.keys(rangeData).forEach(hand => {
-        rangeData[hand] = { action: "unset", frequency: 0 };
-        renderCell(hand);
-      });
-      selectedHands.clear();
-      refreshSelectedStyles();
-      updateStats();
-      setStatus("全ハンドを未入力へ戻しました。");
-    });
-
-    document.getElementById("applyFrequencyBtn").addEventListener("click", () => {
-      const value = Math.max(0, Math.min(100, Number(document.getElementById("frequency").value)));
-      if (!selectedHands.size) {
-        setStatus("先にShift＋クリックまたはダブルクリックでセルを選択してください。");
-        return;
-      }
-      selectedHands.forEach(hand => {
-        if (rangeData[hand].action === "unset" && value > 0) {
-          rangeData[hand].action = activeAction;
-        }
-        rangeData[hand].frequency = rangeData[hand].action === "fold" ? 100 : value;
-        if (value === 0 && rangeData[hand].action !== "fold") {
-          rangeData[hand].action = "unset";
-        }
-        renderCell(hand);
-      });
-      updateStats();
-      setStatus(`${selectedHands.size}セルへ${value}%を適用しました。`);
-    });
-
-    document.getElementById("clearSelectionBtn").addEventListener("click", () => {
-      selectedHands.clear();
-      refreshSelectedStyles();
-    });
-
-    function buildPayload() {
-      return {
-        version: 1,
-        name: document.getElementById("rangeName").value.trim() || "名称未設定",
-        position: document.getElementById("position").value,
-        spot: document.getElementById("spot").value.trim(),
-        notes: document.getElementById("notes").value.trim(),
-        updatedAt: new Date().toISOString(),
-        hands: structuredClone(rangeData)
-      };
-    }
-
-    function loadPayload(payload) {
-      if (!payload || !payload.hands) throw new Error("無効なレンジデータです。");
-
-      document.getElementById("rangeName").value = payload.name || "";
-      document.getElementById("position").value = payload.position || "";
-      document.getElementById("spot").value = payload.spot || "";
-      document.getElementById("notes").value = payload.notes || "";
-
-      Object.keys(rangeData).forEach(hand => {
-        const source = payload.hands[hand] || { action: "unset", frequency: 0 };
-        const validActions = [
-          "unset", "fold", "open", "call", "raise",
-          "mix_raise_call", "mix_raise_fold", "mix_call_fold"
-        ];
-        const normalizedAction = source.action === "mix" ? "mix_raise_call" : source.action;
-        rangeData[hand] = {
-          action: validActions.includes(normalizedAction) ? normalizedAction : "unset",
-          frequency: Math.max(0, Math.min(100, Number(source.frequency || 0)))
-        };
-        renderCell(hand);
-      });
-
-      selectedHands.clear();
-      refreshSelectedStyles();
-      updateStats();
-    }
-
-    function getSavedRanges() {
-      try {
-        return JSON.parse(localStorage.getItem("pokerRangeBuilder.savedRanges") || "[]");
-      } catch {
-        return [];
-      }
-    }
-
-    function setSavedRanges(items) {
-      localStorage.setItem("pokerRangeBuilder.savedRanges", JSON.stringify(items));
-    }
-
-    document.getElementById("saveBtn").addEventListener("click", () => {
-      const payload = buildPayload();
-      const items = getSavedRanges();
-      const index = items.findIndex(item => item.name === payload.name);
-
-      if (index >= 0) items[index] = payload;
-      else items.unshift(payload);
-
-      setSavedRanges(items.slice(0, 30));
-      renderSavedList();
-      setStatus(`「${payload.name}」をブラウザに保存しました。`);
-    });
-
-    function renderSavedList() {
-      const list = document.getElementById("savedList");
-      const items = getSavedRanges();
-      list.innerHTML = "";
-
-      if (!items.length) {
-        list.innerHTML = `<div class="empty">保存済みレンジはありません。</div>`;
-        return;
-      }
-
-      items.forEach((item, index) => {
-        const row = document.createElement("div");
-        row.className = "saved-item";
-        row.innerHTML = `
-          <div class="saved-item-name" title="${escapeHtml(item.name)}">${escapeHtml(item.name)}</div>
-          <button class="mini-btn" data-load="${index}">読込</button>
-          <button class="mini-btn" data-delete="${index}">削除</button>
-        `;
-        list.appendChild(row);
-      });
-
-      list.querySelectorAll("[data-load]").forEach(btn => {
-        btn.addEventListener("click", () => {
-          loadPayload(items[Number(btn.dataset.load)]);
-          setStatus("保存済みレンジを読み込みました。");
-        });
-      });
-
-      list.querySelectorAll("[data-delete]").forEach(btn => {
-        btn.addEventListener("click", () => {
-          items.splice(Number(btn.dataset.delete), 1);
-          setSavedRanges(items);
-          renderSavedList();
-          setStatus("保存済みレンジを削除しました。");
-        });
-      });
-    }
-
-
-    document.getElementById("exportPngBtn").addEventListener("click", () => {
-      const payload = buildPayload();
-      const cell = 64;
-      const gap = 4;
-      const padding = 28;
-      const headerHeight = 92;
-      const gridSize = cell * 13 + gap * 12;
-      const canvas = document.createElement("canvas");
-      canvas.width = gridSize + padding * 2;
-      canvas.height = gridSize + padding * 2 + headerHeight;
-      const ctx = canvas.getContext("2d");
-
-      ctx.fillStyle = "#0f172a";
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-      ctx.fillStyle = "#f8fafc";
-      ctx.font = "bold 28px sans-serif";
-      ctx.fillText(payload.name, padding, 38);
-
-      ctx.fillStyle = "#94a3b8";
-      ctx.font = "16px sans-serif";
-      const meta = [payload.position, payload.spot].filter(Boolean).join(" / ");
-      ctx.fillText(meta || "Poker Range", padding, 68);
-
-      const colors = {
-        unset: "#111827",
-        fold: "#3b82f6",
-        open: "#ef4444",
-        call: "#22c55e",
-        raise: "#ef4444",
-        mixRaise: "#ef4444",
-        mixCall: "#22c55e",
-        mixFold: "#3b82f6"
-      };
-
-      for (let row = 0; row < 13; row++) {
-        for (let col = 0; col < 13; col++) {
-          const hand = handName(row, col);
-          const data = rangeData[hand];
-          const x = padding + col * (cell + gap);
-          const y = padding + headerHeight + row * (cell + gap);
-
-          const mixedColors = {
-            mix_raise_call: [colors.mixRaise, colors.mixCall],
-            mix_raise_fold: [colors.mixRaise, colors.mixFold],
-            mix_call_fold: [colors.mixCall, colors.mixFold]
-          };
-
-          if (mixedColors[data.action]) {
-            const [firstColor, secondColor] = mixedColors[data.action];
-            ctx.fillStyle = firstColor;
-            ctx.fillRect(x, y, cell, cell);
-            ctx.beginPath();
-            ctx.moveTo(x + cell, y);
-            ctx.lineTo(x + cell, y + cell);
-            ctx.lineTo(x, y + cell);
-            ctx.closePath();
-            ctx.fillStyle = secondColor;
-            ctx.fill();
-          } else {
-            ctx.fillStyle = colors[data.action] || colors.unset;
-            ctx.fillRect(x, y, cell, cell);
+      function createGrid() {
+        for (let r = 0; r < 13; r++)
+          for (let c = 0; c < 13; c++) {
+            const h = handName(r, c);
+            data[h] = { action: "unset", frequency: 0 };
+            const cell = document.createElement("button");
+            cell.className = "hand";
+            cell.dataset.hand = h;
+            cell.dataset.action = "unset";
+            cell.innerHTML = `<span>${h}</span><span class="freq"></span>`;
+            cell.onpointerdown = (e) => {
+              e.preventDefault();
+              if (pointer !== null) return;
+              pointer = e.pointerId;
+              drag = true;
+              last = h;
+              cell.setPointerCapture?.(e.pointerId);
+              if (e.shiftKey && e.pointerType === "mouse") {
+                selected.has(h) ? selected.delete(h) : selected.add(h);
+                refreshSelection();
+                return;
+              }
+              selected.clear();
+              refreshSelection();
+              const clear = space || data[h].action === active;
+              mode = clear ? "erase" : "paint";
+              apply(h, clear ? "unset" : active);
+            };
+            cell.onpointermove = (e) => {
+              if (!drag || e.pointerId !== pointer) return;
+              const t = document
+                  .elementFromPoint(e.clientX, e.clientY)
+                  ?.closest(".hand"),
+                th = t?.dataset.hand;
+              if (!th || th === last) return;
+              last = th;
+              apply(th, mode === "erase" || space ? "unset" : active);
+            };
+            cell.ondblclick = () => {
+              selected.clear();
+              selected.add(h);
+              refreshSelection();
+              document.getElementById("frequency").value =
+                data[h].frequency || 100;
+            };
+            grid.appendChild(cell);
           }
-
-          ctx.strokeStyle = "#64748b";
-          ctx.lineWidth = 1;
-          ctx.strokeRect(x + 0.5, y + 0.5, cell - 1, cell - 1);
-
-          ctx.fillStyle = "#f8fafc";
-          ctx.font = "bold 17px sans-serif";
-          ctx.textAlign = "center";
-          ctx.textBaseline = "middle";
-          ctx.fillText(hand, x + cell / 2, y + cell / 2 - 3);
-
-          if (!["unset", "fold"].includes(data.action) && data.frequency > 0 && data.frequency < 100) {
-            ctx.font = "11px sans-serif";
-            ctx.textAlign = "right";
-            ctx.textBaseline = "bottom";
-            ctx.fillText(`${data.frequency}%`, x + cell - 4, y + cell - 3);
-          }
-        }
       }
-
-      ctx.textAlign = "left";
-      ctx.textBaseline = "alphabetic";
-      canvas.toBlob(blob => {
-        if (!blob) {
-          setStatus("PNGの生成に失敗しました。");
+      function finish(e) {
+        if (
+          pointer !== null &&
+          e?.pointerId !== undefined &&
+          e.pointerId !== pointer
+        )
+          return;
+        drag = false;
+        pointer = null;
+        last = null;
+      }
+      document.addEventListener("pointerup", finish);
+      document.addEventListener("pointercancel", finish);
+      function refreshSelection() {
+        document
+          .querySelectorAll(".hand")
+          .forEach((c) =>
+            c.classList.toggle("selected", selected.has(c.dataset.hand)),
+          );
+      }
+      function apply(h, a) {
+        const f =
+          a === "unset"
+            ? 0
+            : Number(document.getElementById("frequency").value || 100);
+        data[h] = { action: a, frequency: Math.max(0, Math.min(100, f)) };
+        render(h);
+        stats();
+      }
+      function render(h) {
+        const c = document.querySelector(`[data-hand="${h}"]`),
+          d = data[h];
+        c.dataset.action = d.action;
+        c.querySelector(".freq").textContent =
+          !["unset", "fold"].includes(d.action) &&
+          d.frequency > 0 &&
+          d.frequency < 100
+            ? `${d.frequency}%`
+            : "";
+      }
+      function stats() {
+        let raw = 0,
+          w = 0,
+          n = 0;
+        Object.entries(data).forEach(([h, d]) => {
+          if (["unset", "fold"].includes(d.action) || d.frequency <= 0) return;
+          const c = combos(h);
+          raw += c;
+          w += (c * d.frequency) / 100;
+          n++;
+        });
+        comboCount.textContent = raw;
+        weightedCombos.textContent = w.toFixed(1);
+        rangePercent.textContent = `${((w / 1326) * 100).toFixed(1)}%`;
+        handCount.textContent = n;
+      }
+      buttons.forEach(
+        (b) =>
+          (b.onclick = () => {
+            active = b.dataset.action;
+            buttons.forEach((x) => x.classList.toggle("active", x === b));
+          }),
+      );
+      selectAllBtn.onclick = () => {
+        Object.keys(data).forEach((h) => selected.add(h));
+        refreshSelection();
+      };
+      clearSelectionBtn.onclick = () => {
+        selected.clear();
+        refreshSelection();
+      };
+      clearAllBtn.onclick = () => {
+        Object.keys(data).forEach((h) => {
+          data[h] = { action: "unset", frequency: 0 };
+          render(h);
+        });
+        selected.clear();
+        refreshSelection();
+        stats();
+        status.textContent = "全ハンドを未入力へ戻しました。";
+      };
+      applyFrequencyBtn.onclick = () => {
+        const v = Math.max(0, Math.min(100, Number(frequency.value)));
+        if (!selected.size) {
+          status.textContent = "先にセルを選択してください。";
           return;
         }
-        downloadBlob(blob, `${sanitizeFileName(payload.name)}.png`);
-        setStatus("PNG画像を出力しました。");
-      }, "image/png");
-    });
-
-    document.getElementById("exportJsonBtn").addEventListener("click", () => {
-      const payload = buildPayload();
-      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
-      downloadBlob(blob, `${sanitizeFileName(payload.name)}.json`);
-      setStatus("JSONファイルを出力しました。");
-    });
-
-    document.getElementById("importJsonBtn").addEventListener("click", () => {
-      document.getElementById("jsonFileInput").click();
-    });
-
-    document.getElementById("jsonFileInput").addEventListener("change", async e => {
-      const file = e.target.files?.[0];
-      if (!file) return;
-      try {
-        const payload = JSON.parse(await file.text());
-        loadPayload(payload);
-        setStatus("JSONファイルを読み込みました。");
-      } catch (error) {
-        setStatus(`読込に失敗しました: ${error.message}`);
-      } finally {
-        e.target.value = "";
+        selected.forEach((h) => {
+          if (data[h].action === "unset" && v > 0) data[h].action = active;
+          data[h].frequency = data[h].action === "fold" ? 100 : v;
+          if (v === 0 && data[h].action !== "fold") data[h].action = "unset";
+          render(h);
+        });
+        stats();
+      };
+      function title(position, name) {
+        const n = name.trim() || "名称未設定";
+        return position ? `${position}_${n}` : n;
       }
-    });
-
-    function downloadBlob(blob, fileName) {
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = fileName;
-      a.click();
-      URL.revokeObjectURL(url);
-    }
-
-    function sanitizeFileName(name) {
-      return (name || "poker-range").replace(/[\\/:*?"<>|]/g, "_");
-    }
-
-    function escapeHtml(value) {
-      return String(value ?? "")
-        .replaceAll("&", "&amp;")
-        .replaceAll("<", "&lt;")
-        .replaceAll(">", "&gt;")
-        .replaceAll('"', "&quot;")
-        .replaceAll("'", "&#039;");
-    }
-
-    function setStatus(message) {
-      document.getElementById("status").textContent = message;
-    }
-
-    createGrid();
-    updateStats();
-    renderSavedList();
-  </script>
-</body>
+      function baseName(p) {
+        if (p.baseName) return p.baseName;
+        const pre = p.position ? `${p.position}_` : "";
+        return pre && p.name?.startsWith(pre)
+          ? p.name.slice(pre.length)
+          : p.name || "";
+      }
+      function payload() {
+        const b = rangeName.value.trim() || "名称未設定",
+          p = position.value;
+        return {
+          version: 2,
+          baseName: b,
+          name: title(p, b),
+          position: p,
+          spot: spot.value.trim(),
+          notes: notes.value.trim(),
+          updatedAt: new Date().toISOString(),
+          hands: structuredClone(data),
+        };
+      }
+      function load(p) {
+        rangeName.value = baseName(p);
+        position.value = p.position || "";
+        spot.value = p.spot || "";
+        notes.value = p.notes || "";
+        Object.keys(data).forEach((h) => {
+          const s = p.hands?.[h] || { action: "unset", frequency: 0 },
+            a = s.action === "mix" ? "mix_raise_call" : s.action;
+          data[h] = {
+            action: a || "unset",
+            frequency: Number(s.frequency || 0),
+          };
+          render(h);
+        });
+        stats();
+      }
+      const getSaved = () => {
+          try {
+            return JSON.parse(
+              localStorage.getItem("pokerRangeBuilder.savedRanges") || "[]",
+            );
+          } catch {
+            return [];
+          }
+        },
+        setSaved = (x) =>
+          localStorage.setItem(
+            "pokerRangeBuilder.savedRanges",
+            JSON.stringify(x),
+          );
+      saveBtn.onclick = () => {
+        const p = payload(),
+          items = getSaved(),
+          i = items.findIndex((x) => x.name === p.name);
+        i >= 0 ? (items[i] = p) : items.unshift(p);
+        setSaved(items.slice(0, 30));
+        renderSaved();
+        status.textContent = `「${p.name}」をブラウザに保存しました。`;
+      };
+      function renderSaved() {
+        const items = getSaved();
+        savedList.innerHTML = items.length
+          ? ""
+          : '<div class="empty">保存済みレンジはありません。</div>';
+        items.forEach((x, i) => {
+          const row = document.createElement("div");
+          row.className = "saved-item";
+          row.innerHTML = `<div class="saved-name">${escapeHtml(x.name)}</div><button class="mini" data-load="${i}">読込</button><button class="mini" data-delete="${i}">削除</button>`;
+          savedList.appendChild(row);
+        });
+        savedList
+          .querySelectorAll("[data-load]")
+          .forEach((b) => (b.onclick = () => load(items[+b.dataset.load])));
+        savedList.querySelectorAll("[data-delete]").forEach(
+          (b) =>
+            (b.onclick = () => {
+              items.splice(+b.dataset.delete, 1);
+              setSaved(items);
+              renderSaved();
+            }),
+        );
+      }
+      function download(blob, name) {
+        const u = URL.createObjectURL(blob),
+          a = document.createElement("a");
+        a.href = u;
+        a.download = name;
+        a.click();
+        URL.revokeObjectURL(u);
+      }
+      const clean = (n) => (n || "poker-range").replace(/[\\/:*?"<>|]/g, "_");
+      exportJsonBtn.onclick = () => {
+        const p = payload();
+        download(
+          new Blob([JSON.stringify(p, null, 2)], { type: "application/json" }),
+          `${clean(p.name)}.json`,
+        );
+      };
+      importJsonBtn.onclick = () => jsonFileInput.click();
+      jsonFileInput.onchange = async (e) => {
+        const f = e.target.files?.[0];
+        if (f) load(JSON.parse(await f.text()));
+        e.target.value = "";
+      };
+      exportPngBtn.onclick = () => {
+        const p = payload(),
+          cell = 64,
+          gap = 4,
+          pad = 28,
+          head = 92,
+          size = cell * 13 + gap * 12,
+          cv = document.createElement("canvas"),
+          ctx = cv.getContext("2d");
+        cv.width = size + pad * 2;
+        cv.height = size + pad * 2 + head;
+        ctx.fillStyle = "#0f172a";
+        ctx.fillRect(0, 0, cv.width, cv.height);
+        ctx.fillStyle = "#f8fafc";
+        ctx.font = "bold 28px sans-serif";
+        ctx.fillText(p.name, pad, 38);
+        ctx.fillStyle = "#94a3b8";
+        ctx.font = "16px sans-serif";
+        ctx.fillText(
+          [p.position, p.spot].filter(Boolean).join(" / ") || "Poker Range",
+          pad,
+          68,
+        );
+        const colors = {
+            unset: "#111827",
+            fold: "#3b82f6",
+            call: "#22c55e",
+            raise: "#ef4444",
+            open: "#ef4444",
+          },
+          mixed = {
+            mix_raise_call: [colors.raise, colors.call],
+            mix_raise_fold: [colors.raise, colors.fold],
+            mix_call_fold: [colors.call, colors.fold],
+          };
+        for (let r = 0; r < 13; r++)
+          for (let c = 0; c < 13; c++) {
+            const h = handName(r, c),
+              d = data[h],
+              x = pad + c * (cell + gap),
+              y = pad + head + r * (cell + gap);
+            if (mixed[d.action]) {
+              const [a, b] = mixed[d.action];
+              ctx.fillStyle = a;
+              ctx.fillRect(x, y, cell, cell);
+              ctx.beginPath();
+              ctx.moveTo(x + cell, y + cell * 0.25);
+              ctx.lineTo(x + cell, y + cell);
+              ctx.lineTo(x, y + cell);
+              ctx.lineTo(x, y + cell * 0.75);
+              ctx.closePath();
+              ctx.fillStyle = b;
+              ctx.fill();
+            } else {
+              ctx.fillStyle = colors[d.action] || colors.unset;
+              ctx.fillRect(x, y, cell, cell);
+            }
+            ctx.strokeStyle = "#64748b";
+            ctx.strokeRect(x + 0.5, y + 0.5, cell - 1, cell - 1);
+            ctx.fillStyle = "#f8fafc";
+            ctx.font = "bold 17px sans-serif";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillText(h, x + cell / 2, y + cell / 2 - 3);
+            if (
+              !["unset", "fold"].includes(d.action) &&
+              d.frequency > 0 &&
+              d.frequency < 100
+            ) {
+              ctx.font = "11px sans-serif";
+              ctx.textAlign = "right";
+              ctx.fillText(`${d.frequency}%`, x + cell - 4, y + cell - 6);
+            }
+          }
+        cv.toBlob((b) => download(b, `${clean(p.name)}.png`), "image/png");
+      };
+      function escapeHtml(v) {
+        return String(v ?? "")
+          .replaceAll("&", "&amp;")
+          .replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;")
+          .replaceAll('"', "&quot;")
+          .replaceAll("'", "&#039;");
+      }
+      createGrid();
+      stats();
+      renderSaved();
+    </script>
+  </body>
 </html>
