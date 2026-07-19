@@ -424,7 +424,7 @@
   </head>
   <body>
     <main class="app">
-      <div class="version">Version v1.3.5</div>
+      <div class="version">Version v1.3.6</div>
       <header class="header">
         <h1>Poker Range Builder</h1>
         <p class="subtitle">
@@ -916,22 +916,21 @@
         cv.height = size + pad * 2 + head;
         ctx.fillStyle = "#0f172a";
         ctx.fillRect(0, 0, cv.width, cv.height);
-        const titleLabel = p.name || "名称未設定";
-        ctx.fillStyle = "#f8fafc";
-        ctx.font = "bold 28px sans-serif";
-        ctx.textAlign = "left";
-        ctx.textBaseline = "alphabetic";
-        ctx.fillText(titleLabel, pad, 38);
-
         const positionLabel = p.position || "未設定";
-        ctx.font = "bold 14px sans-serif";
+        const titleLabel = p.name || "名称未設定";
+        const titleSuffix =
+          p.position && titleLabel.startsWith(`${p.position}_`)
+            ? titleLabel.slice(p.position.length)
+            : `_${titleLabel}`;
 
-        const positionPaddingX = 10;
-        const positionBadgeHeight = 28;
+        ctx.font = "bold 28px sans-serif";
+
+        const positionPaddingX = 12;
+        const positionBadgeHeight = 40;
         const positionBadgeWidth =
           ctx.measureText(positionLabel).width + positionPaddingX * 2;
         const positionBadgeX = pad;
-        const positionBadgeY = 50;
+        const positionBadgeY = 8;
 
         ctx.fillStyle = "#1f2937";
         ctx.strokeStyle = "#64748b";
@@ -942,7 +941,7 @@
           positionBadgeY,
           positionBadgeWidth,
           positionBadgeHeight,
-          7,
+          8,
         );
         ctx.fill();
         ctx.stroke();
@@ -956,14 +955,11 @@
           positionBadgeY + positionBadgeHeight / 2,
         );
 
-        ctx.fillStyle = "#94a3b8";
-        ctx.font = "16px sans-serif";
         ctx.textAlign = "left";
-        ctx.textBaseline = "alphabetic";
         ctx.fillText(
-          "Poker Range",
-          positionBadgeX + positionBadgeWidth + 12,
-          70,
+          titleSuffix,
+          positionBadgeX + positionBadgeWidth + 8,
+          positionBadgeY + positionBadgeHeight / 2,
         );
         const colors = {
             unset: "#111827",
