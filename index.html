@@ -328,13 +328,24 @@
       }
       .saved-item {
         display: grid;
-        grid-template-columns: 1fr auto auto;
+        grid-template-columns: auto minmax(0, 1fr) auto auto;
         gap: 6px;
         align-items: center;
         border: 1px solid var(--line);
         background: #0b1220;
         border-radius: 10px;
         padding: 8px;
+      }
+      .saved-position {
+        min-width: 44px;
+        padding: 5px 8px;
+        border: 1px solid var(--line);
+        border-radius: 7px;
+        background: var(--panel2);
+        color: var(--text);
+        text-align: center;
+        font-size: 12px;
+        font-weight: 700;
       }
       .saved-name {
         overflow: hidden;
@@ -413,7 +424,7 @@
   </head>
   <body>
     <main class="app">
-      <div class="version">Version v1.3.0</div>
+      <div class="version">Version v1.3.1</div>
       <header class="header">
         <h1>Poker Range Builder</h1>
         <p class="subtitle">
@@ -845,7 +856,17 @@
         items.forEach((x, i) => {
           const row = document.createElement("div");
           row.className = "saved-item";
-          row.innerHTML = `<div class="saved-name">${escapeHtml(x.name)}</div><button class="mini" data-load="${i}">読込</button><button class="mini" data-delete="${i}">削除</button>`;
+
+          const displayName = baseName(x);
+          const displayPosition = x.position || "未設定";
+
+          row.innerHTML = `
+            <div class="saved-position">${escapeHtml(displayPosition)}</div>
+            <div class="saved-name">${escapeHtml(displayName)}</div>
+            <button class="mini" data-load="${i}">読込</button>
+            <button class="mini" data-delete="${i}">削除</button>
+          `;
+
           savedList.appendChild(row);
         });
         savedList
