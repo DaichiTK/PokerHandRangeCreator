@@ -428,16 +428,35 @@
     }
 
     @media (max-width: 700px) {
+      html,
+      body {
+        width: 100%;
+        max-width: 100%;
+        overflow-x: hidden;
+      }
+
       .app {
         width: 100%;
+        max-width: 100%;
         padding: 8px;
       }
 
       .range-card {
-        width: 100%;
+        width: calc(100vw - 16px);
+        max-width: calc(100vw - 16px);
         min-width: 0;
-        padding: 8px;
-        overflow: hidden;
+        padding: 0;
+        overflow: visible;
+        background: transparent;
+        border: 0;
+        border-radius: 0;
+        box-shadow: none;
+      }
+
+      .range-card .toolbar {
+        padding: 0;
+        margin: 0 0 12px;
+        gap: 8px;
       }
 
       .scenario-card {
@@ -456,27 +475,43 @@
 
       .grid-wrap {
         display: block;
-        width: 100%;
+        width: calc(100vw - 16px);
+        max-width: calc(100vw - 16px);
         min-width: 0;
-        overflow: hidden;
+        margin: 0;
+        padding: 0;
+        overflow: visible;
       }
 
       .range-grid {
-        width: 100%;
+        width: calc(100vw - 16px);
+        max-width: calc(100vw - 16px);
         min-width: 0;
         grid-template-columns: repeat(13, minmax(0, 1fr));
         grid-template-rows: repeat(13, auto);
-        gap: 2px;
-        padding: 2px;
+        gap: 0;
+        padding: 0;
+        background: transparent;
+        border: 0;
+        border-radius: 0;
       }
 
       .hand-cell {
         width: 100%;
         min-width: 0;
         aspect-ratio: 1 / 1;
-        border-radius: 5px;
-        font-size: clamp(8px, 2.65vw, 12px);
+        border-width: 1px 1px 0 0;
+        border-radius: 0;
+        font-size: clamp(7px, 2.35vw, 11px);
         line-height: 1;
+      }
+
+      .hand-cell:nth-child(13n) {
+        border-right-width: 1px;
+      }
+
+      .hand-cell:nth-last-child(-n + 13) {
+        border-bottom-width: 1px;
       }
 
       .freq {
