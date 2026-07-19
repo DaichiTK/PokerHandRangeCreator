@@ -217,8 +217,14 @@
     .action-btn[data-action="open"] { background: var(--open); }
     .action-btn[data-action="call"] { background: var(--call); color: #ffffff; }
     .action-btn[data-action="raise"] { background: var(--raise); }
-    .action-btn[data-action="mix"] {
+    .action-btn[data-action="mix_raise_call"] {
       background: linear-gradient(135deg, var(--raise) 0 50%, var(--call) 50% 100%);
+    }
+    .action-btn[data-action="mix_raise_fold"] {
+      background: linear-gradient(135deg, var(--raise) 0 50%, var(--fold) 50% 100%);
+    }
+    .action-btn[data-action="mix_call_fold"] {
+      background: linear-gradient(135deg, var(--call) 0 50%, var(--fold) 50% 100%);
     }
 
     .grid-wrap {
@@ -269,8 +275,14 @@
     .hand-cell[data-action="open"] { background: var(--open); }
     .hand-cell[data-action="call"] { background: var(--call); color: #ffffff; }
     .hand-cell[data-action="raise"] { background: var(--raise); }
-    .hand-cell[data-action="mix"] {
+    .hand-cell[data-action="mix_raise_call"] {
       background: linear-gradient(135deg, var(--raise) 0 50%, var(--call) 50% 100%);
+    }
+    .hand-cell[data-action="mix_raise_fold"] {
+      background: linear-gradient(135deg, var(--raise) 0 50%, var(--fold) 50% 100%);
+    }
+    .hand-cell[data-action="mix_call_fold"] {
+      background: linear-gradient(135deg, var(--call) 0 50%, var(--fold) 50% 100%);
     }
 
     .freq {
@@ -592,7 +604,7 @@
 </head>
 <body>
   <main class="app">
-    <div class="version-bar" aria-label="アプリバージョン">Version v1.1.0</div>
+    <div class="version-bar" aria-label="アプリバージョン">Version v1.2.0</div>
     <header class="header">
       <div>
         <h1>Poker Range Builder</h1>
@@ -655,7 +667,9 @@
         <div class="toolbar">
           <button class="action-btn active" data-action="raise">Bet / Raise</button>
           <button class="action-btn" data-action="call">Call</button>
-          <button class="action-btn" data-action="mix">Mixed</button>
+          <button class="action-btn" data-action="mix_raise_call">Raise / Call</button>
+          <button class="action-btn" data-action="mix_raise_fold">Raise / Fold</button>
+          <button class="action-btn" data-action="mix_call_fold">Call / Fold</button>
           <button class="action-btn" data-action="fold">Fold</button>
           <button class="tool-btn" id="selectAllBtn">全選択</button>
           <button class="tool-btn" id="clearAllBtn">全解除</button>
@@ -690,7 +704,9 @@
           <div class="legend">
             <div class="legend-item"><span class="dot" style="background:var(--open)"></span>Bet / Raise</div>
             <div class="legend-item"><span class="dot" style="background:var(--call)"></span>Call</div>
-            <div class="legend-item"><span class="dot" style="background:linear-gradient(135deg,var(--raise) 0 50%,var(--call) 50% 100%)"></span>Mixed</div>
+            <div class="legend-item"><span class="dot" style="background:linear-gradient(135deg,var(--raise) 0 50%,var(--call) 50% 100%)"></span>Raise / Call</div>
+            <div class="legend-item"><span class="dot" style="background:linear-gradient(135deg,var(--raise) 0 50%,var(--fold) 50% 100%)"></span>Raise / Fold</div>
+            <div class="legend-item"><span class="dot" style="background:linear-gradient(135deg,var(--call) 0 50%,var(--fold) 50% 100%)"></span>Call / Fold</div>
             <div class="legend-item"><span class="dot" style="background:var(--fold)"></span>Fold</div>
             <div class="legend-item"><span class="dot" style="background:var(--unset);border:1px solid #475569"></span>未入力</div>
           </div>
@@ -713,6 +729,8 @@
     let isDragging = false;
     let dragMode = "paint";
     let isSpacePressed = false;
+    let activePointerId = null;
+    let lastPaintedHand = null;
     const rangeData = {};
 
     document.addEventListener("keydown", event => {
@@ -729,6 +747,8 @@
     window.addEventListener("blur", () => {
       isSpacePressed = false;
       isDragging = false;
+      activePointerId = null;
+      lastPaintedHand = null;
     });
 
     const comboCountFor = hand => {
@@ -758,11 +778,16 @@
           cell.dataset.action = "unset";
           cell.innerHTML = `<span>${hand}</span><span class="freq"></span>`;
 
-          cell.addEventListener("mousedown", e => {
-            e.preventDefault();
-            isDragging = true;
+          cell.addEventListener("pointerdown", event => {
+            event.preventDefault();
+            if (activePointerId !== null) return;
 
-            if (e.shiftKey) {
+            activePointerId = event.pointerId;
+            isDragging = true;
+            lastPaintedHand = hand;
+            cell.setPointerCapture?.(event.pointerId);
+
+            if (event.shiftKey && event.pointerType === "mouse") {
               toggleSelection(hand, cell);
               return;
             }
@@ -772,19 +797,20 @@
 
             const currentAction = rangeData[hand].action;
             const shouldClear = isSpacePressed || currentAction === activeAction;
-
-            if (shouldClear) {
-              dragMode = "erase";
-              applyAction(hand, "unset");
-            } else {
-              dragMode = "paint";
-              applyAction(hand, activeAction);
-            }
+            dragMode = shouldClear ? "erase" : "paint";
+            applyAction(hand, shouldClear ? "unset" : activeAction);
           });
 
-          cell.addEventListener("mouseenter", () => {
-            if (!isDragging) return;
-            applyAction(hand, dragMode === "erase" || isSpacePressed ? "unset" : activeAction);
+          cell.addEventListener("pointermove", event => {
+            if (!isDragging || event.pointerId !== activePointerId) return;
+            event.preventDefault();
+
+            const target = document.elementFromPoint(event.clientX, event.clientY)?.closest(".hand-cell");
+            const targetHand = target?.dataset.hand;
+            if (!targetHand || targetHand === lastPaintedHand) return;
+
+            lastPaintedHand = targetHand;
+            applyAction(targetHand, dragMode === "erase" || isSpacePressed ? "unset" : activeAction);
           });
 
           cell.addEventListener("click", e => e.preventDefault());
@@ -800,8 +826,15 @@
       }
     }
 
-    document.addEventListener("mouseup", () => isDragging = false);
-    document.addEventListener("mouseleave", () => isDragging = false);
+    function finishPointerDrag(event) {
+      if (activePointerId !== null && event?.pointerId !== undefined && event.pointerId !== activePointerId) return;
+      isDragging = false;
+      activePointerId = null;
+      lastPaintedHand = null;
+    }
+
+    document.addEventListener("pointerup", finishPointerDrag);
+    document.addEventListener("pointercancel", finishPointerDrag);
 
     function toggleSelection(hand, cell) {
       if (selectedHands.has(hand)) selectedHands.delete(hand);
@@ -931,9 +964,13 @@
 
       Object.keys(rangeData).forEach(hand => {
         const source = payload.hands[hand] || { action: "unset", frequency: 0 };
-        const validActions = ["unset", "fold", "open", "call", "raise", "mix"];
+        const validActions = [
+          "unset", "fold", "open", "call", "raise",
+          "mix_raise_call", "mix_raise_fold", "mix_call_fold"
+        ];
+        const normalizedAction = source.action === "mix" ? "mix_raise_call" : source.action;
         rangeData[hand] = {
-          action: validActions.includes(source.action) ? source.action : "unset",
+          action: validActions.includes(normalizedAction) ? normalizedAction : "unset",
           frequency: Math.max(0, Math.min(100, Number(source.frequency || 0)))
         };
         renderCell(hand);
@@ -1038,8 +1075,9 @@
         open: "#ef4444",
         call: "#22c55e",
         raise: "#ef4444",
-        mixA: "#ef4444",
-        mixB: "#22c55e"
+        mixRaise: "#ef4444",
+        mixCall: "#22c55e",
+        mixFold: "#3b82f6"
       };
 
       for (let row = 0; row < 13; row++) {
@@ -1049,15 +1087,22 @@
           const x = padding + col * (cell + gap);
           const y = padding + headerHeight + row * (cell + gap);
 
-          if (data.action === "mix") {
-            ctx.fillStyle = colors.mixA;
+          const mixedColors = {
+            mix_raise_call: [colors.mixRaise, colors.mixCall],
+            mix_raise_fold: [colors.mixRaise, colors.mixFold],
+            mix_call_fold: [colors.mixCall, colors.mixFold]
+          };
+
+          if (mixedColors[data.action]) {
+            const [firstColor, secondColor] = mixedColors[data.action];
+            ctx.fillStyle = firstColor;
             ctx.fillRect(x, y, cell, cell);
             ctx.beginPath();
             ctx.moveTo(x + cell, y);
             ctx.lineTo(x + cell, y + cell);
             ctx.lineTo(x, y + cell);
             ctx.closePath();
-            ctx.fillStyle = colors.mixB;
+            ctx.fillStyle = secondColor;
             ctx.fill();
           } else {
             ctx.fillStyle = colors[data.action] || colors.unset;
@@ -1074,7 +1119,7 @@
           ctx.textBaseline = "middle";
           ctx.fillText(hand, x + cell / 2, y + cell / 2 - 3);
 
-          if (!["unset", "fold"].includes(data.action) && data.frequency < 100) {
+          if (!["unset", "fold"].includes(data.action) && data.frequency > 0 && data.frequency < 100) {
             ctx.font = "11px sans-serif";
             ctx.textAlign = "right";
             ctx.textBaseline = "bottom";
