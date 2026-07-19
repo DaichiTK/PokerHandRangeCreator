@@ -67,6 +67,81 @@
       align-items: start;
     }
 
+    .scenario-card {
+      padding: 16px 18px;
+      margin-bottom: 18px;
+    }
+
+    .scenario-main {
+      display: grid;
+      grid-template-columns: minmax(220px, .8fr) minmax(320px, 1.4fr) auto;
+      gap: 12px;
+      align-items: end;
+    }
+
+    .scenario-main .field {
+      margin-bottom: 0;
+    }
+
+    .scenario-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      justify-content: flex-end;
+    }
+
+    .detail-disclosure {
+      margin-top: 12px;
+      border-top: 1px solid var(--line);
+      padding-top: 10px;
+    }
+
+    .detail-disclosure summary {
+      width: fit-content;
+      cursor: pointer;
+      color: var(--text);
+      font-weight: 800;
+      list-style: none;
+      user-select: none;
+      padding: 7px 10px;
+      border-radius: 8px;
+      border: 1px solid var(--line);
+      background: var(--panel-2);
+    }
+
+    .detail-disclosure summary::-webkit-details-marker {
+      display: none;
+    }
+
+    .detail-disclosure summary::after {
+      content: "▼";
+      display: inline-block;
+      margin-left: 8px;
+      color: var(--muted);
+      font-size: 11px;
+      transition: transform .15s ease;
+    }
+
+    .detail-disclosure[open] summary::after {
+      transform: rotate(180deg);
+    }
+
+    .detail-fields {
+      display: grid;
+      grid-template-columns: minmax(180px, .45fr) minmax(280px, 1.55fr);
+      gap: 12px;
+      margin-top: 12px;
+    }
+
+    .detail-fields .field {
+      margin-bottom: 0;
+    }
+
+    .detail-fields textarea {
+      min-height: 76px;
+    }
+
     .card {
       background: rgba(17, 24, 39, 0.94);
       border: 1px solid var(--line);
@@ -334,9 +409,19 @@
     }
 
     @media (max-width: 1050px) {
+      .scenario-main {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .scenario-actions {
+        grid-column: 1 / -1;
+        justify-content: flex-start;
+      }
+
       .layout {
         grid-template-columns: 1fr;
       }
+
       .side {
         grid-template-columns: repeat(2, minmax(280px, 1fr));
       }
@@ -344,8 +429,21 @@
 
     @media (max-width: 700px) {
       :root { --cell-size: min(6.8vw, 42px); }
+
       .app { padding: 10px; }
       .range-card { padding: 10px; }
+      .scenario-card { padding: 14px; }
+
+      .scenario-main,
+      .detail-fields {
+        grid-template-columns: 1fr;
+      }
+
+      .scenario-actions {
+        grid-column: auto;
+        justify-content: flex-start;
+      }
+
       .side { grid-template-columns: 1fr; }
       .header { flex-direction: column; }
     }
@@ -359,6 +457,55 @@
         <p class="subtitle">13×13のハンドマトリクスをクリックまたはドラッグしてレンジを作成します。</p>
       </div>
     </header>
+
+    <section class="card scenario-card" aria-labelledby="scenarioHeading">
+      <h2 id="scenarioHeading" class="section-title">シチュエーション入力</h2>
+
+      <div class="scenario-main">
+        <div class="field">
+          <label for="rangeName">レンジ名</label>
+          <input id="rangeName" type="text" placeholder="例：BTN Open 2.3bb" />
+        </div>
+
+        <div class="field">
+          <label for="spot">シチュエーション</label>
+          <input id="spot" type="text" placeholder="例：BTN vs BB 3bet" />
+        </div>
+
+        <div class="scenario-actions">
+          <button class="primary-btn" id="saveBtn">保存</button>
+          <button class="secondary-btn" id="exportPngBtn">PNG出力</button>
+          <button class="secondary-btn" id="exportJsonBtn">JSON出力</button>
+          <button class="secondary-btn" id="importJsonBtn">JSON読込</button>
+          <input id="jsonFileInput" type="file" accept=".json,application/json" hidden />
+        </div>
+      </div>
+
+      <details class="detail-disclosure">
+        <summary>詳細を入力</summary>
+        <div class="detail-fields">
+          <div class="field">
+            <label for="position">ポジション</label>
+            <select id="position">
+              <option value="">未設定</option>
+              <option>UTG</option>
+              <option>HJ</option>
+              <option>CO</option>
+              <option>BTN</option>
+              <option>SB</option>
+              <option>BB</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label for="notes">メモ</label>
+            <textarea id="notes" placeholder="レーキ、スタック、相手傾向など"></textarea>
+          </div>
+        </div>
+      </details>
+
+      <div id="status" class="status"></div>
+    </section>
 
     <div class="layout">
       <section class="card range-card">
@@ -376,42 +523,6 @@
       </section>
 
       <aside class="side">
-        <section class="card">
-          <h2 class="section-title">レンジ情報</h2>
-          <div class="field">
-            <label for="rangeName">レンジ名</label>
-            <input id="rangeName" type="text" placeholder="例：BTN Open 2.3bb" />
-          </div>
-          <div class="field">
-            <label for="position">ポジション</label>
-            <select id="position">
-              <option value="">未設定</option>
-              <option>UTG</option>
-              <option>HJ</option>
-              <option>CO</option>
-              <option>BTN</option>
-              <option>SB</option>
-              <option>BB</option>
-            </select>
-          </div>
-          <div class="field">
-            <label for="spot">シチュエーション</label>
-            <input id="spot" type="text" placeholder="例：BTN vs BB 3bet" />
-          </div>
-          <div class="field">
-            <label for="notes">メモ</label>
-            <textarea id="notes" placeholder="レーキ、スタック、相手傾向など"></textarea>
-          </div>
-          <div class="button-row">
-            <button class="primary-btn" id="saveBtn">保存</button>
-            <button class="secondary-btn" id="exportPngBtn">PNG出力</button>
-            <button class="secondary-btn" id="exportJsonBtn">JSON出力</button>
-            <button class="secondary-btn" id="importJsonBtn">JSON読込</button>
-            <input id="jsonFileInput" type="file" accept=".json,application/json" hidden />
-          </div>
-          <div id="status" class="status"></div>
-        </section>
-
         <section class="card">
           <h2 class="section-title">選択セル設定</h2>
           <div class="field">
