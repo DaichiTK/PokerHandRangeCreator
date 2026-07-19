@@ -42,6 +42,37 @@
       padding: 20px;
     }
 
+    .version-bar {
+      width: 100%;
+      margin-bottom: 8px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: .04em;
+      text-align: right;
+    }
+
+    /* 各機能セクションは外枠で囲まず、余白だけで区切る */
+    .scenario-card,
+    .range-card,
+    .side > .card {
+      background: transparent;
+      border: 0;
+      border-radius: 0;
+      box-shadow: none;
+    }
+
+    .scenario-card,
+    .range-card,
+    .side > .card {
+      padding-left: 0;
+      padding-right: 0;
+    }
+
+    .side > .card + .card {
+      margin-top: 8px;
+    }
+
     .header {
       display: flex;
       align-items: flex-start;
@@ -441,6 +472,25 @@
         padding: 8px;
       }
 
+      .scenario-card,
+      .range-card,
+      .side > .card {
+        width: 100%;
+        max-width: 100%;
+        padding-left: 0;
+        padding-right: 0;
+        background: transparent;
+        border: 0;
+        border-radius: 0;
+        box-shadow: none;
+      }
+
+      .version-bar {
+        padding: 0 2px;
+        margin-bottom: 6px;
+        font-size: 11px;
+      }
+
       .range-card {
         width: calc(100vw - 16px);
         max-width: calc(100vw - 16px);
@@ -528,10 +578,21 @@
         flex-direction: column;
       }
     }
-  </style>
+  
+    /* Section frame override */
+    .card.scenario-card,
+    .card.range-card,
+    .side > section.card {
+      background: transparent !important;
+      border: none !important;
+      border-radius: 0 !important;
+      box-shadow: none !important;
+    }
+</style>
 </head>
 <body>
   <main class="app">
+    <div class="version-bar" aria-label="アプリバージョン">Version v1.1.0</div>
     <header class="header">
       <div>
         <h1>Poker Range Builder</h1>
