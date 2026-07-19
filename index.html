@@ -424,7 +424,7 @@
   </head>
   <body>
     <main class="app">
-      <div class="version">Version v1.3.7</div>
+      <div class="version">Version v1.3.6</div>
       <header class="header">
         <h1>Poker Range Builder</h1>
         <p class="subtitle">
@@ -786,7 +786,7 @@
       };
       function title(position, name) {
         const n = name.trim() || "名称未設定";
-        return position ? `${position}&nbsp;${n}` : n;
+        return position ? `${position}${n}` : n;
       }
       function baseName(p) {
         if (p.baseName) return p.baseName;
