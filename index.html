@@ -424,7 +424,7 @@
   </head>
   <body>
     <main class="app">
-      <div class="version">Version v1.3.3</div>
+      <div class="version">Version v1.3.4</div>
       <header class="header">
         <h1>Poker Range Builder</h1>
         <p class="subtitle">
@@ -917,25 +917,32 @@
         ctx.fillStyle = "#0f172a";
         ctx.fillRect(0, 0, cv.width, cv.height);
         const titleLabel = p.name || "名称未設定";
+        ctx.fillStyle = "#f8fafc";
         ctx.font = "bold 28px sans-serif";
+        ctx.textAlign = "left";
+        ctx.textBaseline = "alphabetic";
+        ctx.fillText(titleLabel, pad, 38);
 
-        const titlePaddingX = 12;
-        const titleBadgeHeight = 40;
-        const titleBadgeWidth =
-          ctx.measureText(titleLabel).width + titlePaddingX * 2;
-        const titleBadgeX = pad;
-        const titleBadgeY = 8;
+        const positionLabel = p.position || "未設定";
+        ctx.font = "bold 14px sans-serif";
+
+        const positionPaddingX = 10;
+        const positionBadgeHeight = 28;
+        const positionBadgeWidth =
+          ctx.measureText(positionLabel).width + positionPaddingX * 2;
+        const positionBadgeX = pad;
+        const positionBadgeY = 50;
 
         ctx.fillStyle = "#1f2937";
         ctx.strokeStyle = "#64748b";
         ctx.lineWidth = 1;
         ctx.beginPath();
         ctx.roundRect(
-          titleBadgeX,
-          titleBadgeY,
-          titleBadgeWidth,
-          titleBadgeHeight,
-          8,
+          positionBadgeX,
+          positionBadgeY,
+          positionBadgeWidth,
+          positionBadgeHeight,
+          7,
         );
         ctx.fill();
         ctx.stroke();
@@ -944,16 +951,20 @@
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
         ctx.fillText(
-          titleLabel,
-          titleBadgeX + titleBadgeWidth / 2,
-          titleBadgeY + titleBadgeHeight / 2,
+          positionLabel,
+          positionBadgeX + positionBadgeWidth / 2,
+          positionBadgeY + positionBadgeHeight / 2,
         );
 
         ctx.fillStyle = "#94a3b8";
         ctx.font = "16px sans-serif";
         ctx.textAlign = "left";
         ctx.textBaseline = "alphabetic";
-        ctx.fillText(p.spot || "Poker Range", pad, 72);
+        ctx.fillText(
+          p.spot || "Poker Range",
+          positionBadgeX + positionBadgeWidth + 12,
+          70,
+        );
         const colors = {
             unset: "#111827",
             fold: "#3b82f6",
