@@ -97,12 +97,32 @@
       }
       .prior-action-row {
         display: grid;
-        grid-template-columns: minmax(90px, 120px) minmax(180px, 1fr) auto;
+        grid-template-columns: minmax(90px, 120px) minmax(110px, 150px) minmax(100px, 140px) auto;
         gap: 8px;
         align-items: center;
       }
       .prior-action-row .mini {
         height: 42px;
+      }
+      .prior-action-size-wrap {
+        position: relative;
+      }
+      .prior-action-size-wrap::after {
+        content: "bb";
+        position: absolute;
+        right: 10px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--muted);
+        font-size: 12px;
+        pointer-events: none;
+      }
+      .prior-action-size {
+        padding-right: 34px;
+      }
+      .prior-action-size:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
       }
       .prior-action-add {
         width: max-content;
@@ -411,7 +431,7 @@
           grid-column: auto;
         }
         .prior-action-row {
-          grid-template-columns: 100px minmax(0, 1fr) auto;
+          grid-template-columns: 86px minmax(90px, 1fr) minmax(86px, 0.8fr) auto;
         }
         .layout {
           display: block;
@@ -444,7 +464,7 @@
   </head>
   <body>
     <main class="app">
-      <div class="version">Version v1.5.0</div>
+      <div class="version">Version v1.6.0</div>
       <header class="header">
         <h1>Poker Range Builder</h1>
         <p class="subtitle">
@@ -661,11 +681,53 @@
         `;
         positionSelect.value = value.position || "";
 
-        const actionInput = document.createElement("input");
-        actionInput.className = "prior-action-value";
-        actionInput.type = "text";
-        actionInput.placeholder = "例：Raise 2.3bb / Call / Fold";
-        actionInput.value = value.action || "";
+        const actionSelect = document.createElement("select");
+        actionSelect.className = "prior-action-type";
+        actionSelect.innerHTML = `
+          <option value="bet">Bet</option>
+          <option value="raise">Raise</option>
+          <option value="call">Call</option>
+          <option value="check">Check</option>
+          <option value="fold">Fold</option>
+          <option value="limp">Limp</option>
+          <option value="all_in">All-in</option>
+        `;
+
+        const legacyAction = String(value.action || "").trim();
+        const normalizedLegacyAction = legacyAction.toLowerCase();
+        const supportedActions = [
+          "bet",
+          "raise",
+          "call",
+          "check",
+          "fold",
+          "limp",
+          "all_in",
+        ];
+        actionSelect.value = supportedActions.includes(normalizedLegacyAction)
+          ? normalizedLegacyAction
+          : "bet";
+
+        const sizeWrap = document.createElement("div");
+        sizeWrap.className = "prior-action-size-wrap";
+
+        const sizeInput = document.createElement("input");
+        sizeInput.className = "prior-action-size";
+        sizeInput.type = "number";
+        sizeInput.min = "0";
+        sizeInput.step = "0.1";
+        sizeInput.inputMode = "decimal";
+        sizeInput.placeholder = "例：2.3";
+        sizeInput.value = value.amount ?? "";
+        sizeWrap.appendChild(sizeInput);
+
+        const updateSizeState = () => {
+          const requiresSize = ["bet", "raise"].includes(actionSelect.value);
+          sizeInput.disabled = !requiresSize;
+          if (!requiresSize) sizeInput.value = "";
+        };
+        actionSelect.addEventListener("change", updateSizeState);
+        updateSizeState();
 
         const removeButton = document.createElement("button");
         removeButton.className = "mini";
@@ -676,17 +738,25 @@
           if (!priorActionsEl.children.length) createPriorActionRow();
         };
 
-        row.append(positionSelect, actionInput, removeButton);
+        row.append(positionSelect, actionSelect, sizeWrap, removeButton);
         priorActionsEl.appendChild(row);
       }
 
       function getPriorActions() {
         return [...priorActionsEl.querySelectorAll(".prior-action-row")]
-          .map((row) => ({
-            position: row.querySelector(".prior-action-position").value,
-            action: row.querySelector(".prior-action-value").value.trim(),
-          }))
-          .filter((item) => item.position || item.action);
+          .map((row) => {
+            const action = row.querySelector(".prior-action-type").value;
+            const amountInput = row.querySelector(".prior-action-size");
+            const amount = ["bet", "raise"].includes(action)
+              ? amountInput.value.trim()
+              : "";
+            return {
+              position: row.querySelector(".prior-action-position").value,
+              action,
+              amount,
+            };
+          })
+          .filter((item) => item.position || item.amount || item.action !== "bet");
       }
 
       function setPriorActions(items = []) {
@@ -898,7 +968,7 @@
         const loadedPriorActions = Array.isArray(p.priorActions)
           ? p.priorActions
           : p.priorAction
-            ? [{ position: "", action: p.priorAction }]
+            ? [{ position: "", action: "bet", amount: "" }]
             : [];
         setPriorActions(loadedPriorActions);
         spot.value = p.spot || "";
@@ -1050,10 +1120,26 @@
           positionBadgeX + positionBadgeWidth + 8,
           positionBadgeY + positionBadgeHeight / 2,
         );
+        const actionLabels = {
+          bet: "Bet",
+          raise: "Raise",
+          call: "Call",
+          check: "Check",
+          fold: "Fold",
+          limp: "Limp",
+          all_in: "All-in",
+        };
         const priorActionLabel = (p.priorActions || [])
-          .map(({ position, action }) =>
-            [position, action].filter(Boolean).join(" "),
-          )
+          .map(({ position, action, amount }) => {
+            const actionLabel = actionLabels[action] || action || "Bet";
+            const sizeLabel =
+              ["bet", "raise"].includes(action) && amount
+                ? `${amount}bb`
+                : "";
+            return [position, actionLabel, sizeLabel]
+              .filter(Boolean)
+              .join(" ");
+          })
           .filter(Boolean)
           .join(" / ");
         if (priorActionLabel) {
