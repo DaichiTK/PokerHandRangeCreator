@@ -70,7 +70,7 @@
       }
       .scenario-main {
         display: grid;
-        grid-template-columns: minmax(220px, 1fr) minmax(140px, 220px) auto;
+        grid-template-columns: minmax(220px, 1fr) minmax(140px, 220px) minmax(260px, 1.2fr) auto;
         gap: 12px;
         align-items: end;
       }
@@ -424,7 +424,7 @@
   </head>
   <body>
     <main class="app">
-      <div class="version">Version v1.3.7</div>
+      <div class="version">Version v1.4.0</div>
       <header class="header">
         <h1>Poker Range Builder</h1>
         <p class="subtitle">
@@ -449,6 +449,14 @@
               <option>SB</option>
               <option>BB</option>
             </select>
+          </div>
+          <div class="field">
+            <label for="priorAction">自分がプレーする前のアクション</label
+            ><input
+              id="priorAction"
+              type="text"
+              placeholder="例：UTG fold / HJ raise 2.3bb / CO call"
+            />
           </div>
           <div class="actions">
             <button class="primary" id="saveBtn">保存</button
@@ -786,7 +794,7 @@
       };
       function title(position, name) {
         const n = name.trim() || "名称未設定";
-        return position ? `${n}` : n;
+        return position ? `${position}_${n}` : n;
       }
       function baseName(p) {
         if (p.baseName) return p.baseName;
@@ -803,6 +811,7 @@
           baseName: b,
           name: title(p, b),
           position: p,
+          priorAction: priorAction.value.trim(),
           spot: spot.value.trim(),
           notes: notes.value.trim(),
           updatedAt: new Date().toISOString(),
@@ -812,6 +821,7 @@
       function load(p) {
         rangeName.value = baseName(p);
         position.value = p.position || "";
+        priorAction.value = p.priorAction || "";
         spot.value = p.spot || "";
         notes.value = p.notes || "";
         Object.keys(data).forEach((h) => {
@@ -908,7 +918,7 @@
           cell = 64,
           gap = 4,
           pad = 28,
-          head = 92,
+          head = 126,
           size = cell * 13 + gap * 12,
           cv = document.createElement("canvas"),
           ctx = cv.getContext("2d");
@@ -921,7 +931,7 @@
         const titleSuffix =
           p.position && titleLabel.startsWith(`${p.position}_`)
             ? titleLabel.slice(p.position.length)
-            : `${titleLabel}`;
+            : `_${titleLabel}`;
 
         ctx.font = "bold 28px sans-serif";
 
@@ -961,6 +971,16 @@
           positionBadgeX + positionBadgeWidth + 8,
           positionBadgeY + positionBadgeHeight / 2,
         );
+        const priorActionLabel = p.priorAction
+          ? `前のアクション: ${p.priorAction}`
+          : "";
+        if (priorActionLabel) {
+          ctx.fillStyle = "#94a3b8";
+          ctx.font = "15px sans-serif";
+          ctx.textAlign = "left";
+          ctx.textBaseline = "alphabetic";
+          ctx.fillText(priorActionLabel, pad, 78);
+        }
         const colors = {
             unset: "#111827",
             fold: "#3b82f6",
