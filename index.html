@@ -464,7 +464,7 @@
   </head>
   <body>
     <main class="app">
-      <div class="version">Version v1.6.0</div>
+      <div class="version">Version v1.7.0</div>
       <header class="header">
         <h1>Poker Range Builder</h1>
         <p class="subtitle">
@@ -684,29 +684,18 @@
         const actionSelect = document.createElement("select");
         actionSelect.className = "prior-action-type";
         actionSelect.innerHTML = `
-          <option value="bet">Bet</option>
           <option value="raise">Raise</option>
           <option value="call">Call</option>
-          <option value="check">Check</option>
           <option value="fold">Fold</option>
-          <option value="limp">Limp</option>
           <option value="all_in">All-in</option>
         `;
 
         const legacyAction = String(value.action || "").trim();
         const normalizedLegacyAction = legacyAction.toLowerCase();
-        const supportedActions = [
-          "bet",
-          "raise",
-          "call",
-          "check",
-          "fold",
-          "limp",
-          "all_in",
-        ];
+        const supportedActions = ["raise", "call", "fold", "all_in"];
         actionSelect.value = supportedActions.includes(normalizedLegacyAction)
           ? normalizedLegacyAction
-          : "bet";
+          : "raise";
 
         const sizeWrap = document.createElement("div");
         sizeWrap.className = "prior-action-size-wrap";
@@ -722,7 +711,7 @@
         sizeWrap.appendChild(sizeInput);
 
         const updateSizeState = () => {
-          const requiresSize = ["bet", "raise"].includes(actionSelect.value);
+          const requiresSize = actionSelect.value === "raise";
           sizeInput.disabled = !requiresSize;
           if (!requiresSize) sizeInput.value = "";
         };
@@ -747,7 +736,7 @@
           .map((row) => {
             const action = row.querySelector(".prior-action-type").value;
             const amountInput = row.querySelector(".prior-action-size");
-            const amount = ["bet", "raise"].includes(action)
+            const amount = action === "raise"
               ? amountInput.value.trim()
               : "";
             return {
@@ -756,7 +745,7 @@
               amount,
             };
           })
-          .filter((item) => item.position || item.amount || item.action !== "bet");
+          .filter((item) => item.position || item.amount || item.action !== "raise");
       }
 
       function setPriorActions(items = []) {
@@ -968,7 +957,7 @@
         const loadedPriorActions = Array.isArray(p.priorActions)
           ? p.priorActions
           : p.priorAction
-            ? [{ position: "", action: "bet", amount: "" }]
+            ? [{ position: "", action: "raise", amount: "" }]
             : [];
         setPriorActions(loadedPriorActions);
         spot.value = p.spot || "";
@@ -1121,19 +1110,16 @@
           positionBadgeY + positionBadgeHeight / 2,
         );
         const actionLabels = {
-          bet: "Bet",
           raise: "Raise",
           call: "Call",
-          check: "Check",
           fold: "Fold",
-          limp: "Limp",
           all_in: "All-in",
         };
         const priorActionLabel = (p.priorActions || [])
           .map(({ position, action, amount }) => {
-            const actionLabel = actionLabels[action] || action || "Bet";
+            const actionLabel = actionLabels[action] || action || "Raise";
             const sizeLabel =
-              ["bet", "raise"].includes(action) && amount
+              action === "raise" && amount
                 ? `${amount}bb`
                 : "";
             return [position, actionLabel, sizeLabel]
