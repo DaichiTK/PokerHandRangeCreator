@@ -464,7 +464,7 @@
   </head>
   <body>
     <main class="app">
-      <div class="version">Version v1.7.0</div>
+      <div class="version">Version v1.8.0</div>
       <header class="header">
         <h1>Poker Range Builder</h1>
         <p class="subtitle">
@@ -491,7 +491,7 @@
             </select>
           </div>
           <div class="field">
-            <label>相手アクション</label>
+            <label>自分がプレーする前の相手アクション</label>
             <div id="priorActions" class="prior-actions"></div>
             <button class="mini prior-action-add" id="addPriorActionBtn" type="button">
               ＋ 相手を追加
@@ -542,6 +542,7 @@
               Call&nbsp;&nbsp;&nbsp;Fold</button
             ><button class="action-btn" data-action="fold">Fold</button
             ><button class="btn" id="selectAllBtn">全選択</button
+            ><button class="btn" id="selectUnsetBtn">未入力選択</button
             ><button class="btn" id="clearAllBtn">全解除</button>
           </div>
           <div class="grid-wrap">
@@ -894,8 +895,20 @@
           }),
       );
       selectAllBtn.onclick = () => {
+        selected.clear();
         Object.keys(data).forEach((h) => selected.add(h));
         refreshSelection();
+        status.textContent = "全ハンドを選択しました。";
+      };
+      selectUnsetBtn.onclick = () => {
+        selected.clear();
+        Object.entries(data).forEach(([h, handData]) => {
+          if (handData.action === "unset") selected.add(h);
+        });
+        refreshSelection();
+        status.textContent = selected.size
+          ? `未入力の${selected.size}ハンドを選択しました。`
+          : "未入力のハンドはありません。";
       };
       clearSelectionBtn.onclick = () => {
         selected.clear();
