@@ -464,7 +464,7 @@
   </head>
   <body>
     <main class="app">
-      <div class="version">Version v1.8.1</div>
+      <div class="version">Version v1.9.0</div>
       <header class="header">
         <h1>Poker Range Builder</h1>
         <p class="subtitle">
@@ -887,11 +887,44 @@
         rangePercent.textContent = `${((w / 1326) * 100).toFixed(1)}%`;
         handCount.textContent = n;
       }
+      function applyActionToSelection(action) {
+        if (!selected.size) return;
+
+        const inputFrequency = Math.max(
+          0,
+          Math.min(100, Number(frequency.value || 100)),
+        );
+
+        selected.forEach((h) => {
+          data[h] = {
+            action,
+            frequency: action === "fold" ? 100 : inputFrequency,
+          };
+          render(h);
+        });
+
+        stats();
+        status.textContent = `選択中の${selected.size}ハンドへ${actionLabel(action)}を適用しました。`;
+      }
+
+      function actionLabel(action) {
+        const labels = {
+          raise: "Bet / Raise",
+          call: "Call",
+          mix_raise_call: "Raise / Call",
+          mix_raise_fold: "Raise / Fold",
+          mix_call_fold: "Call / Fold",
+          fold: "Fold",
+        };
+        return labels[action] || action;
+      }
+
       buttons.forEach(
         (b) =>
           (b.onclick = () => {
             active = b.dataset.action;
             buttons.forEach((x) => x.classList.toggle("active", x === b));
+            applyActionToSelection(active);
           }),
       );
       selectAllBtn.onclick = () => {
