@@ -444,7 +444,7 @@
   </head>
   <body>
     <main class="app">
-      <div class="version">Version v1.11.0</div>
+      <div class="version">Version v1.12.0</div>
       <header class="header">
         <h1>Poker Range Builder</h1>
         <p class="subtitle">
@@ -535,7 +535,7 @@
                 type="number"
                 min="0"
                 max="100"
-                value="100"
+                value="50"
               />
             </div>
             <div class="button-row">
@@ -824,7 +824,9 @@
               selected.add(h);
               refreshSelection();
               document.getElementById("frequency").value =
-                data[h].frequency || 100;
+                Number.isFinite(Number(data[h].frequency))
+                  ? Number(data[h].frequency)
+                  : 50;
             };
             grid.appendChild(cell);
           }
@@ -853,7 +855,7 @@
         const f =
           a === "unset"
             ? 0
-            : Number(document.getElementById("frequency").value || 100);
+            : Number(document.getElementById("frequency").value || 50);
         data[h] = { action: a, frequency: Math.max(0, Math.min(100, f)) };
         render(h);
         stats();
@@ -913,7 +915,7 @@
 
         const inputFrequency = Math.max(
           0,
-          Math.min(100, Number(frequency.value || 100)),
+          Math.min(100, Number(frequency.value || 50)),
         );
 
         selected.forEach((h) => {
@@ -1274,7 +1276,33 @@
         a.href = u;
         a.download = name;
         a.click();
-        URL.revokeObjectURL(u);
+        setTimeout(() => URL.revokeObjectURL(u), 1000);
+      }
+
+      async function shareOrDownloadPng(blob, name) {
+        const file = new File([blob], name, { type: "image/png" });
+        const canShareFile =
+          typeof navigator.share === "function" &&
+          typeof navigator.canShare === "function" &&
+          navigator.canShare({ files: [file] });
+
+        if (canShareFile) {
+          try {
+            await navigator.share({ files: [file] });
+            status.textContent =
+              "共有メニューを開きました。iPhoneでは「画像を保存」を選択してください。";
+            return;
+          } catch (error) {
+            if (error?.name === "AbortError") {
+              status.textContent = "PNGの共有をキャンセルしました。";
+              return;
+            }
+            console.error(error);
+          }
+        }
+
+        download(blob, name);
+        status.textContent = "PNGをダウンロードしました。";
       }
       const clean = (n) => (n || "poker-range").replace(/[\\/:*?"<>|]/g, "_");
       exportJsonBtn.onclick = () => {
@@ -1425,7 +1453,13 @@
             ctx.textBaseline = "middle";
             ctx.fillText(h, x + cell / 2, y + cell / 2 - 3);
           }
-        cv.toBlob((b) => download(b, `${clean(p.name)}.png`), "image/png");
+        cv.toBlob(async (blob) => {
+          if (!blob) {
+            status.textContent = "PNGの生成に失敗しました。";
+            return;
+          }
+          await shareOrDownloadPng(blob, `${clean(p.name)}.png`);
+        }, "image/png");
       };
       function escapeHtml(v) {
         return String(v ?? "")
