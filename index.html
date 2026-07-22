@@ -70,9 +70,16 @@
       }
       .scenario-main {
         display: grid;
-        grid-template-columns: minmax(220px, 1fr) minmax(140px, 220px) minmax(360px, 1.4fr) auto;
+        grid-template-columns: minmax(220px, 1fr) minmax(140px, 220px);
         gap: 12px;
         align-items: end;
+      }
+      .scenario-secondary {
+        display: grid;
+        grid-template-columns: minmax(360px, 1fr) auto;
+        gap: 12px;
+        align-items: end;
+        margin-top: 12px;
       }
       .actions,
       .toolbar,
@@ -83,12 +90,13 @@
       }
       .actions {
         justify-content: flex-end;
+        align-self: end;
       }
       .field {
         margin-bottom: 12px;
       }
       .scenario-main .field,
-      .detail-grid .field {
+      .scenario-secondary .field {
         margin-bottom: 0;
       }
       .prior-actions {
@@ -169,12 +177,6 @@
         border: 1px solid var(--line);
         background: var(--panel2);
       }
-      .detail-grid {
-        display: grid;
-        grid-template-columns: minmax(180px, 0.45fr) minmax(280px, 1.55fr);
-        gap: 12px;
-        margin-top: 12px;
-      }
       .layout {
         display: grid;
         grid-template-columns: minmax(620px, 1fr) minmax(300px, 380px);
@@ -223,21 +225,21 @@
       }
       .action-btn[data-action="mix_raise_call"] {
         background: linear-gradient(
-          110deg,
+          to right,
           var(--raise) 0 50%,
           var(--call) 50% 100%
         );
       }
       .action-btn[data-action="mix_raise_fold"] {
         background: linear-gradient(
-          110deg,
+          to right,
           var(--raise) 0 50%,
           var(--fold) 50% 100%
         );
       }
       .action-btn[data-action="mix_call_fold"] {
         background: linear-gradient(
-          110deg,
+          to right,
           var(--call) 0 50%,
           var(--fold) 50% 100%
         );
@@ -283,27 +285,6 @@
       .hand[data-action="raise"],
       .hand[data-action="open"] {
         background: var(--raise);
-      }
-      .hand[data-action="mix_raise_call"] {
-        background: linear-gradient(
-          135deg,
-          var(--raise) 0 50%,
-          var(--call) 50% 100%
-        );
-      }
-      .hand[data-action="mix_raise_fold"] {
-        background: linear-gradient(
-          135deg,
-          var(--raise) 0 50%,
-          var(--fold) 50% 100%
-        );
-      }
-      .hand[data-action="mix_call_fold"] {
-        background: linear-gradient(
-          135deg,
-          var(--call) 0 50%,
-          var(--fold) 50% 100%
-        );
       }
       .freq {
         position: absolute;
@@ -408,8 +389,10 @@
         .scenario-main {
           grid-template-columns: 1fr 1fr;
         }
+        .scenario-secondary {
+          grid-template-columns: 1fr;
+        }
         .actions {
-          grid-column: 1/-1;
           justify-content: flex-start;
         }
         .layout {
@@ -424,11 +407,8 @@
           padding: 8px;
         }
         .scenario-main,
-        .detail-grid {
+        .scenario-secondary {
           grid-template-columns: 1fr;
-        }
-        .actions {
-          grid-column: auto;
         }
         .prior-action-row {
           grid-template-columns: 86px minmax(90px, 1fr) minmax(86px, 0.8fr) auto;
@@ -464,7 +444,7 @@
   </head>
   <body>
     <main class="app">
-      <div class="version">Version v1.9.0</div>
+      <div class="version">Version v1.11.0</div>
       <header class="header">
         <h1>Poker Range Builder</h1>
         <p class="subtitle">
@@ -490,6 +470,8 @@
               <option>BB</option>
             </select>
           </div>
+        </div>
+        <div class="scenario-secondary">
           <div class="field">
             <label>自分がプレーする前の相手アクション</label>
             <div id="priorActions" class="prior-actions"></div>
@@ -511,19 +493,13 @@
           </div>
         </div>
         <details>
-          <summary>詳細を入力</summary>
-          <div class="detail-grid">
-            <div class="field">
-              <label for="spot">シチュエーション</label
-              ><input id="spot" type="text" placeholder="例：BTN vs BB 3bet" />
-            </div>
-            <div class="field">
-              <label for="notes">メモ</label
-              ><textarea
-                id="notes"
-                placeholder="レーキ、スタック、相手傾向など"
-              ></textarea>
-            </div>
+          <summary>メモを入力</summary>
+          <div class="field" style="margin-top: 12px">
+            <label for="notes">メモ</label
+            ><textarea
+              id="notes"
+              placeholder="レーキ、スタック、相手傾向など"
+            ></textarea>
           </div>
         </details>
         <div id="status" class="status"></div>
@@ -596,7 +572,7 @@
                   class="dot"
                   style="
                     background: linear-gradient(
-                      110deg,
+                      to right,
                       var(--raise) 0 50%,
                       var(--call) 50% 100%
                     );
@@ -609,7 +585,7 @@
                   class="dot"
                   style="
                     background: linear-gradient(
-                      110deg,
+                      to right,
                       var(--raise) 0 50%,
                       var(--fold) 50% 100%
                     );
@@ -622,7 +598,7 @@
                   class="dot"
                   style="
                     background: linear-gradient(
-                      110deg,
+                      to right,
                       var(--call) 0 50%,
                       var(--fold) 50% 100%
                     );
@@ -642,7 +618,29 @@
         </aside>
       </div>
     </main>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>
+      const SUPABASE_URL = "YOUR_SUPABASE_URL";
+      const SUPABASE_PUBLISHABLE_KEY = "YOUR_SUPABASE_PUBLISHABLE_KEY";
+      const SUPABASE_TABLE = "poker_ranges";
+      const LOCAL_STORAGE_KEY = "pokerRangeBuilder.savedRanges";
+
+      const isSupabaseConfigured =
+        SUPABASE_URL.startsWith("https://") &&
+        !SUPABASE_URL.includes("YOUR_SUPABASE_URL") &&
+        SUPABASE_PUBLISHABLE_KEY &&
+        !SUPABASE_PUBLISHABLE_KEY.includes("YOUR_SUPABASE_PUBLISHABLE_KEY");
+
+      const supabaseClient = isSupabaseConfigured
+        ? window.supabase.createClient(
+            SUPABASE_URL,
+            SUPABASE_PUBLISHABLE_KEY,
+          )
+        : null;
+
+      let cloudUserId = null;
+      let savedRangesCache = [];
+
       const ranks = [
           "A",
           "K",
@@ -862,14 +860,37 @@
       }
       function render(h) {
         const c = document.querySelector(`[data-hand="${h}"]`),
-          d = data[h];
+          d = data[h],
+          f = Math.max(0, Math.min(100, Number(d.frequency || 0))),
+          single = {
+            unset: "var(--unset)",
+            fold: "var(--fold)",
+            call: "var(--call)",
+            raise: "var(--raise)",
+            open: "var(--raise)",
+          },
+          mixed = {
+            mix_raise_call: ["var(--raise)", "var(--call)"],
+            mix_raise_fold: ["var(--raise)", "var(--fold)"],
+            mix_call_fold: ["var(--call)", "var(--fold)"],
+          };
+
         c.dataset.action = d.action;
-        c.querySelector(".freq").textContent =
-          !["unset", "fold"].includes(d.action) &&
-          d.frequency > 0 &&
-          d.frequency < 100
-            ? `${d.frequency}%`
-            : "";
+        c.querySelector(".freq").textContent = "";
+
+        if (d.action === "unset") {
+          c.style.background = "var(--unset)";
+        } else if (mixed[d.action]) {
+          const [left, right] = mixed[d.action];
+          c.style.background = `linear-gradient(to right, ${left} 0 ${f}%, ${right} ${f}% 100%)`;
+        } else if (f >= 100) {
+          c.style.background = single[d.action] || single.unset;
+        } else if (f <= 0) {
+          c.style.background = "var(--unset)";
+        } else {
+          const color = single[d.action] || single.unset;
+          c.style.background = `linear-gradient(to right, ${color} 0 ${f}%, var(--unset) ${f}% 100%)`;
+        }
       }
       function stats() {
         let raw = 0,
@@ -898,7 +919,7 @@
         selected.forEach((h) => {
           data[h] = {
             action,
-            frequency: action === "fold" ? 100 : inputFrequency,
+            frequency: inputFrequency,
           };
           render(h);
         });
@@ -965,8 +986,10 @@
         }
         selected.forEach((h) => {
           if (data[h].action === "unset" && v > 0) data[h].action = active;
-          data[h].frequency = data[h].action === "fold" ? 100 : v;
-          if (v === 0 && data[h].action !== "fold") data[h].action = "unset";
+          data[h].frequency = v;
+          if (v === 0 && !data[h].action.startsWith("mix_")) {
+            data[h].action = "unset";
+          }
           render(h);
         });
         stats();
@@ -991,7 +1014,6 @@
           name: title(p, b),
           position: p,
           priorActions: getPriorActions(),
-          spot: spot.value.trim(),
           notes: notes.value.trim(),
           updatedAt: new Date().toISOString(),
           hands: structuredClone(data),
@@ -1006,7 +1028,6 @@
             ? [{ position: "", action: "raise", amount: "" }]
             : [];
         setPriorActions(loadedPriorActions);
-        spot.value = p.spot || "";
         notes.value = p.notes || "";
         Object.keys(data).forEach((h) => {
           const s = p.hands?.[h] || { action: "unset", frequency: 0 },
@@ -1019,31 +1040,187 @@
         });
         stats();
       }
-      const getSaved = () => {
-          try {
-            return JSON.parse(
-              localStorage.getItem("pokerRangeBuilder.savedRanges") || "[]",
-            );
-          } catch {
-            return [];
-          }
-        },
-        setSaved = (x) =>
-          localStorage.setItem(
-            "pokerRangeBuilder.savedRanges",
-            JSON.stringify(x),
-          );
-      saveBtn.onclick = () => {
-        const p = payload(),
-          items = getSaved(),
-          i = items.findIndex((x) => x.name === p.name);
-        i >= 0 ? (items[i] = p) : items.unshift(p);
-        setSaved(items.slice(0, 30));
+      function getLocalSaved() {
+        try {
+          return JSON.parse(localStorage.getItem(LOCAL_STORAGE_KEY) || "[]");
+        } catch {
+          return [];
+        }
+      }
+
+      function setLocalSaved(items) {
+        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(items));
+      }
+
+      function normalizeSavedRange(row) {
+        if (row?.range_data) {
+          return {
+            ...row.range_data,
+            cloudId: row.id,
+          };
+        }
+        return row;
+      }
+
+      async function ensureCloudSession() {
+        if (!supabaseClient) return false;
+
+        const {
+          data: { session },
+          error: sessionError,
+        } = await supabaseClient.auth.getSession();
+        if (sessionError) throw sessionError;
+
+        if (session?.user) {
+          cloudUserId = session.user.id;
+          return true;
+        }
+
+        const { data: signInData, error: signInError } =
+          await supabaseClient.auth.signInAnonymously();
+        if (signInError) throw signInError;
+
+        cloudUserId = signInData.user?.id || null;
+        return Boolean(cloudUserId);
+      }
+
+      async function fetchCloudSaved() {
+        const ready = await ensureCloudSession();
+        if (!ready) return [];
+
+        const { data: rows, error } = await supabaseClient
+          .from(SUPABASE_TABLE)
+          .select("id, range_name, range_data, updated_at")
+          .order("updated_at", { ascending: false });
+        if (error) throw error;
+
+        return (rows || []).map(normalizeSavedRange);
+      }
+
+      async function upsertCloudRange(rangePayload) {
+        const ready = await ensureCloudSession();
+        if (!ready) throw new Error("Supabaseへ接続できませんでした。");
+
+        const existing = savedRangesCache.find(
+          (item) => item.name === rangePayload.name,
+        );
+        const record = {
+          user_id: cloudUserId,
+          range_name: rangePayload.name,
+          range_data: rangePayload,
+          updated_at: new Date().toISOString(),
+        };
+        if (existing?.cloudId) record.id = existing.cloudId;
+
+        const { data: rows, error } = await supabaseClient
+          .from(SUPABASE_TABLE)
+          .upsert(record, { onConflict: "user_id,range_name" })
+          .select("id, range_name, range_data, updated_at");
+        if (error) throw error;
+
+        return normalizeSavedRange(rows?.[0] || { range_data: rangePayload });
+      }
+
+      async function deleteCloudRange(rangeItem) {
+        if (!rangeItem.cloudId) return;
+        const ready = await ensureCloudSession();
+        if (!ready) throw new Error("Supabaseへ接続できませんでした。");
+
+        const { error } = await supabaseClient
+          .from(SUPABASE_TABLE)
+          .delete()
+          .eq("id", rangeItem.cloudId);
+        if (error) throw error;
+      }
+
+      async function migrateLocalRangesToCloud(localItems, cloudItems) {
+        const cloudNames = new Set(cloudItems.map((item) => item.name));
+        const targets = localItems.filter((item) => !cloudNames.has(item.name));
+        if (!targets.length) return cloudItems;
+
+        const migrated = [...cloudItems];
+        for (const item of targets) {
+          migrated.push(await upsertCloudRange(item));
+        }
+        return migrated.sort(
+          (a, b) =>
+            new Date(b.updatedAt || 0).getTime() -
+            new Date(a.updatedAt || 0).getTime(),
+        );
+      }
+
+      async function initializeSavedRanges() {
+        const localItems = getLocalSaved();
+        savedRangesCache = localItems;
         renderSaved();
-        status.textContent = `「${p.name}」をブラウザに保存しました。`;
+
+        if (!isSupabaseConfigured) {
+          status.textContent =
+            "Supabase未設定のため、現在はブラウザ内へ保存しています。";
+          return;
+        }
+
+        try {
+          status.textContent = "クラウド保存を準備しています…";
+          const cloudItems = await fetchCloudSaved();
+          savedRangesCache = await migrateLocalRangesToCloud(
+            localItems,
+            cloudItems,
+          );
+          setLocalSaved(savedRangesCache);
+          renderSaved();
+          status.textContent = "Supabaseとの同期が完了しました。";
+        } catch (error) {
+          console.error(error);
+          status.textContent =
+            "Supabaseへ接続できなかったため、ブラウザ内のデータを表示しています。";
+        }
+      }
+
+      saveBtn.onclick = async () => {
+        const p = payload();
+        saveBtn.disabled = true;
+
+        try {
+          if (isSupabaseConfigured) {
+            status.textContent = `「${p.name}」をクラウドへ保存しています…`;
+            const saved = await upsertCloudRange(p);
+            const index = savedRangesCache.findIndex(
+              (item) => item.name === p.name,
+            );
+            if (index >= 0) savedRangesCache[index] = saved;
+            else savedRangesCache.unshift(saved);
+            status.textContent = `「${p.name}」をSupabaseへ保存しました。`;
+          } else {
+            const index = savedRangesCache.findIndex(
+              (item) => item.name === p.name,
+            );
+            if (index >= 0) savedRangesCache[index] = p;
+            else savedRangesCache.unshift(p);
+            status.textContent = `「${p.name}」をブラウザに保存しました。`;
+          }
+
+          savedRangesCache = savedRangesCache.slice(0, 100);
+          setLocalSaved(savedRangesCache);
+          renderSaved();
+        } catch (error) {
+          console.error(error);
+          const index = savedRangesCache.findIndex(
+            (item) => item.name === p.name,
+          );
+          if (index >= 0) savedRangesCache[index] = p;
+          else savedRangesCache.unshift(p);
+          setLocalSaved(savedRangesCache);
+          renderSaved();
+          status.textContent =
+            `クラウド保存に失敗したため、「${p.name}」をブラウザ内へ保存しました。`;
+        } finally {
+          saveBtn.disabled = false;
+        }
       };
+
       function renderSaved() {
-        const items = getSaved();
+        const items = savedRangesCache;
         savedList.innerHTML = items.length
           ? ""
           : '<div class="empty">保存済みレンジはありません。</div>';
@@ -1068,13 +1245,29 @@
           .forEach((b) => (b.onclick = () => load(items[+b.dataset.load])));
         savedList.querySelectorAll("[data-delete]").forEach(
           (b) =>
-            (b.onclick = () => {
-              items.splice(+b.dataset.delete, 1);
-              setSaved(items);
-              renderSaved();
+            (b.onclick = async () => {
+              const index = +b.dataset.delete;
+              const target = items[index];
+              b.disabled = true;
+
+              try {
+                if (isSupabaseConfigured) {
+                  await deleteCloudRange(target);
+                }
+                savedRangesCache.splice(index, 1);
+                setLocalSaved(savedRangesCache);
+                renderSaved();
+                status.textContent = `「${target.name}」を削除しました。`;
+              } catch (error) {
+                console.error(error);
+                b.disabled = false;
+                status.textContent =
+                  `「${target.name}」のクラウド削除に失敗しました。`;
+              }
             }),
         );
       }
+
       function download(blob, name) {
         const u = URL.createObjectURL(blob),
           a = document.createElement("a");
@@ -1199,21 +1392,30 @@
               d = data[h],
               x = pad + c * (cell + gap),
               y = pad + head + r * (cell + gap);
+            const frequencyValue = Math.max(
+              0,
+              Math.min(100, Number(d.frequency || 0)),
+            );
+
             if (mixed[d.action]) {
-              const [a, b] = mixed[d.action];
-              ctx.fillStyle = a;
+              const [primaryColor, secondaryColor] = mixed[d.action];
+              const primaryWidth = (cell * frequencyValue) / 100;
+              ctx.fillStyle = primaryColor;
+              ctx.fillRect(x, y, primaryWidth, cell);
+              ctx.fillStyle = secondaryColor;
+              ctx.fillRect(x + primaryWidth, y, cell - primaryWidth, cell);
+            } else if (d.action === "unset" || frequencyValue <= 0) {
+              ctx.fillStyle = colors.unset;
               ctx.fillRect(x, y, cell, cell);
-              ctx.beginPath();
-              ctx.moveTo(x + cell, y + cell * 0.25);
-              ctx.lineTo(x + cell, y + cell);
-              ctx.lineTo(x, y + cell);
-              ctx.lineTo(x, y + cell * 0.75);
-              ctx.closePath();
-              ctx.fillStyle = b;
-              ctx.fill();
-            } else {
+            } else if (frequencyValue >= 100) {
               ctx.fillStyle = colors[d.action] || colors.unset;
               ctx.fillRect(x, y, cell, cell);
+            } else {
+              const actionWidth = (cell * frequencyValue) / 100;
+              ctx.fillStyle = colors[d.action] || colors.unset;
+              ctx.fillRect(x, y, actionWidth, cell);
+              ctx.fillStyle = colors.unset;
+              ctx.fillRect(x + actionWidth, y, cell - actionWidth, cell);
             }
             ctx.strokeStyle = "#64748b";
             ctx.strokeRect(x + 0.5, y + 0.5, cell - 1, cell - 1);
@@ -1222,15 +1424,6 @@
             ctx.textAlign = "center";
             ctx.textBaseline = "middle";
             ctx.fillText(h, x + cell / 2, y + cell / 2 - 3);
-            if (
-              !["unset", "fold"].includes(d.action) &&
-              d.frequency > 0 &&
-              d.frequency < 100
-            ) {
-              ctx.font = "11px sans-serif";
-              ctx.textAlign = "right";
-              ctx.fillText(`${d.frequency}%`, x + cell - 4, y + cell - 6);
-            }
           }
         cv.toBlob((b) => download(b, `${clean(p.name)}.png`), "image/png");
       };
@@ -1245,7 +1438,7 @@
       setPriorActions();
       createGrid();
       stats();
-      renderSaved();
+      initializeSavedRanges();
     </script>
   </body>
 </html>
