@@ -244,6 +244,20 @@
           var(--fold) 50% 100%
         );
       }
+      .action-btn[data-action="mix_raise_call_fold"] {
+        background: linear-gradient(
+          to right,
+          var(--raise) 0 33.333%,
+          var(--call) 33.333% 66.666%,
+          var(--fold) 66.666% 100%
+        );
+      }
+      .frequency-settings[hidden] {
+        display: none;
+      }
+      .frequency-help {
+        margin: 8px 0 0;
+      }
       .grid-wrap {
         display: inline-block;
         user-select: none;
@@ -444,7 +458,7 @@
   </head>
   <body>
     <main class="app">
-      <div class="version">Version v1.12.0</div>
+      <div class="version">Version v1.13.0</div>
       <header class="header">
         <h1>Poker Range Builder</h1>
         <p class="subtitle">
@@ -516,6 +530,8 @@
               Raise&nbsp;&nbsp;&nbsp;Fold</button
             ><button class="action-btn" data-action="mix_call_fold">
               Call&nbsp;&nbsp;&nbsp;Fold</button
+            ><button class="action-btn" data-action="mix_raise_call_fold">
+              Raise&nbsp;&nbsp;Call&nbsp;&nbsp;Fold</button
             ><button class="action-btn" data-action="fold">Fold</button
             ><button class="btn" id="selectAllBtn">全選択</button
             ><button class="btn" id="selectUnsetBtn">未入力選択</button
@@ -528,21 +544,42 @@
         <aside class="side">
           <section class="card">
             <h2 class="section-title">選択セル設定</h2>
-            <div class="field">
-              <label for="frequency">頻度（0〜100%）</label
-              ><input
-                id="frequency"
-                type="number"
-                min="0"
-                max="100"
-                value="50"
-              />
+            <div id="frequencySettings" class="frequency-settings" hidden>
+              <div class="field">
+                <label id="frequencyLabel" for="frequency">
+                  先頭アクションの頻度（0〜100%）
+                </label>
+                <input
+                  id="frequency"
+                  type="number"
+                  min="0"
+                  max="100"
+                  value="50"
+                />
+              </div>
+              <div id="secondaryFrequencyField" class="field" hidden>
+                <label for="secondaryFrequency">
+                  Call頻度（残りはFold）
+                </label>
+                <input
+                  id="secondaryFrequency"
+                  type="number"
+                  min="0"
+                  max="100"
+                  value="25"
+                />
+              </div>
+              <button class="primary" id="applyFrequencyBtn">
+                選択セルへ頻度を適用
+              </button>
+              <p id="frequencyHelp" class="empty frequency-help"></p>
             </div>
             <div class="button-row">
-              <button class="primary" id="applyFrequencyBtn">
-                選択セルへ適用</button
-              ><button class="btn" id="clearSelectionBtn">選択解除</button>
+              <button class="btn" id="clearSelectionBtn">選択解除</button>
             </div>
+            <p class="empty">
+              単色のBet / Raise・Call・Foldには頻度を使用しません。混合アクションを選んだ場合だけ頻度を設定します。
+            </p>
             <p class="empty">
               Shift＋クリックで複数選択できます。スペースキーを押しながらクリック／ドラッグすると未入力へ戻せます。
             </p>
@@ -605,6 +642,20 @@
                   "
                 ></span
                 >Call / Fold
+              </div>
+              <div class="legend-item">
+                <span
+                  class="dot"
+                  style="
+                    background: linear-gradient(
+                      to right,
+                      var(--raise) 0 33.333%,
+                      var(--call) 33.333% 66.666%,
+                      var(--fold) 66.666% 100%
+                    );
+                  "
+                ></span
+                >Raise / Call / Fold
               </div>
               <div class="legend-item">
                 <span class="dot" style="background: var(--fold)"></span>Fold
@@ -823,10 +874,11 @@
               selected.clear();
               selected.add(h);
               refreshSelection();
-              document.getElementById("frequency").value =
-                Number.isFinite(Number(data[h].frequency))
-                  ? Number(data[h].frequency)
-                  : 50;
+              const selectedData = normalizeHandData(data[h]);
+              frequency.value = selectedData.frequency || 50;
+              secondaryFrequency.value =
+                selectedData.secondaryFrequency || 25;
+              updateFrequencyControls();
             };
             grid.appendChild(cell);
           }
@@ -851,19 +903,151 @@
             c.classList.toggle("selected", selected.has(c.dataset.hand)),
           );
       }
+      const mixedActions = new Set([
+        "mix_raise_call",
+        "mix_raise_fold",
+        "mix_call_fold",
+        "mix_raise_call_fold",
+      ]);
+
+      function isMixedAction(action) {
+        return mixedActions.has(action);
+      }
+
+      function clampPercent(value, fallback = 0) {
+        const parsed = Number(value);
+        if (!Number.isFinite(parsed)) return fallback;
+        return Math.max(0, Math.min(100, parsed));
+      }
+
+      function normalizeHandData(handData) {
+        const action = handData?.action || "unset";
+
+        if (action === "unset") {
+          return { action: "unset", frequency: 0, secondaryFrequency: 0 };
+        }
+
+        if (["raise", "open", "call", "fold"].includes(action)) {
+          return {
+            action,
+            frequency: action === "fold" ? 0 : 100,
+            secondaryFrequency: 0,
+          };
+        }
+
+        if (action === "mix_raise_call_fold") {
+          const raiseFrequency = clampPercent(handData.frequency, 50);
+          const callFrequency = Math.min(
+            100 - raiseFrequency,
+            clampPercent(handData.secondaryFrequency, 25),
+          );
+          return {
+            action,
+            frequency: raiseFrequency,
+            secondaryFrequency: callFrequency,
+          };
+        }
+
+        return {
+          action,
+          frequency: clampPercent(handData.frequency, 50),
+          secondaryFrequency: 0,
+        };
+      }
+
+      function participationFrequency(handData) {
+        const d = normalizeHandData(handData);
+        if (d.action === "unset" || d.action === "fold") return 0;
+        if (
+          d.action === "raise" ||
+          d.action === "open" ||
+          d.action === "call" ||
+          d.action === "mix_raise_call"
+        ) {
+          return 100;
+        }
+        if (
+          d.action === "mix_raise_fold" ||
+          d.action === "mix_call_fold"
+        ) {
+          return d.frequency;
+        }
+        if (d.action === "mix_raise_call_fold") {
+          return Math.min(100, d.frequency + d.secondaryFrequency);
+        }
+        return 0;
+      }
+
+      function updateFrequencyControls() {
+        const settings = document.getElementById("frequencySettings");
+        const secondaryField = document.getElementById(
+          "secondaryFrequencyField",
+        );
+        const label = document.getElementById("frequencyLabel");
+        const help = document.getElementById("frequencyHelp");
+
+        settings.hidden = !isMixedAction(active);
+        secondaryField.hidden = active !== "mix_raise_call_fold";
+
+        const labels = {
+          mix_raise_call: "Raise頻度（残りはCall）",
+          mix_raise_fold: "Raise頻度（残りはFold）",
+          mix_call_fold: "Call頻度（残りはFold）",
+          mix_raise_call_fold: "Raise頻度",
+        };
+        label.textContent = labels[active] || "頻度（0〜100%）";
+
+        if (active === "mix_raise_call_fold") {
+          const raiseValue = clampPercent(frequency.value, 50);
+          const callValue = Math.min(
+            100 - raiseValue,
+            clampPercent(secondaryFrequency.value, 25),
+          );
+          secondaryFrequency.value = callValue;
+          help.textContent = `Fold頻度は自動計算されます（現在 ${100 - raiseValue - callValue}%）。`;
+        } else if (isMixedAction(active)) {
+          help.textContent =
+            "入力した頻度が左側のアクション、残りが右側のアクションになります。";
+        } else {
+          help.textContent = "";
+        }
+      }
+
       function apply(h, a) {
-        const f =
-          a === "unset"
-            ? 0
-            : Number(document.getElementById("frequency").value || 50);
-        data[h] = { action: a, frequency: Math.max(0, Math.min(100, f)) };
+        if (a === "unset") {
+          data[h] = { action: "unset", frequency: 0, secondaryFrequency: 0 };
+        } else if (!isMixedAction(a)) {
+          data[h] = {
+            action: a,
+            frequency: a === "fold" ? 0 : 100,
+            secondaryFrequency: 0,
+          };
+        } else if (a === "mix_raise_call_fold") {
+          const raiseFrequency = clampPercent(frequency.value, 50);
+          const callFrequency = Math.min(
+            100 - raiseFrequency,
+            clampPercent(secondaryFrequency.value, 25),
+          );
+          data[h] = {
+            action: a,
+            frequency: raiseFrequency,
+            secondaryFrequency: callFrequency,
+          };
+        } else {
+          data[h] = {
+            action: a,
+            frequency: clampPercent(frequency.value, 50),
+            secondaryFrequency: 0,
+          };
+        }
         render(h);
         stats();
       }
       function render(h) {
         const c = document.querySelector(`[data-hand="${h}"]`),
-          d = data[h],
-          f = Math.max(0, Math.min(100, Number(d.frequency || 0))),
+          d = normalizeHandData(data[h]),
+          f = d.frequency,
+          second = d.secondaryFrequency,
           single = {
             unset: "var(--unset)",
             fold: "var(--fold)",
@@ -877,21 +1061,25 @@
             mix_call_fold: ["var(--call)", "var(--fold)"],
           };
 
+        data[h] = d;
         c.dataset.action = d.action;
         c.querySelector(".freq").textContent = "";
 
         if (d.action === "unset") {
           c.style.background = "var(--unset)";
+        } else if (d.action === "mix_raise_call_fold") {
+          const raiseEnd = f;
+          const callEnd = Math.min(100, f + second);
+          c.style.background =
+            `linear-gradient(to right, ` +
+            `var(--raise) 0 ${raiseEnd}%, ` +
+            `var(--call) ${raiseEnd}% ${callEnd}%, ` +
+            `var(--fold) ${callEnd}% 100%)`;
         } else if (mixed[d.action]) {
           const [left, right] = mixed[d.action];
           c.style.background = `linear-gradient(to right, ${left} 0 ${f}%, ${right} ${f}% 100%)`;
-        } else if (f >= 100) {
-          c.style.background = single[d.action] || single.unset;
-        } else if (f <= 0) {
-          c.style.background = "var(--unset)";
         } else {
-          const color = single[d.action] || single.unset;
-          c.style.background = `linear-gradient(to right, ${color} 0 ${f}%, var(--unset) ${f}% 100%)`;
+          c.style.background = single[d.action] || single.unset;
         }
       }
       function stats() {
@@ -899,10 +1087,11 @@
           w = 0,
           n = 0;
         Object.entries(data).forEach(([h, d]) => {
-          if (["unset", "fold"].includes(d.action) || d.frequency <= 0) return;
+          const participation = participationFrequency(d);
+          if (participation <= 0) return;
           const c = combos(h);
           raw += c;
-          w += (c * d.frequency) / 100;
+          w += (c * participation) / 100;
           n++;
         });
         comboCount.textContent = raw;
@@ -913,20 +1102,8 @@
       function applyActionToSelection(action) {
         if (!selected.size) return;
 
-        const inputFrequency = Math.max(
-          0,
-          Math.min(100, Number(frequency.value || 50)),
-        );
+        selected.forEach((h) => apply(h, action));
 
-        selected.forEach((h) => {
-          data[h] = {
-            action,
-            frequency: inputFrequency,
-          };
-          render(h);
-        });
-
-        stats();
         status.textContent = `選択中の${selected.size}ハンドへ${actionLabel(action)}を適用しました。`;
       }
 
@@ -937,6 +1114,7 @@
           mix_raise_call: "Raise / Call",
           mix_raise_fold: "Raise / Fold",
           mix_call_fold: "Call / Fold",
+          mix_raise_call_fold: "Raise / Call / Fold",
           fold: "Fold",
         };
         return labels[action] || action;
@@ -947,6 +1125,7 @@
           (b.onclick = () => {
             active = b.dataset.action;
             buttons.forEach((x) => x.classList.toggle("active", x === b));
+            updateFrequencyControls();
             applyActionToSelection(active);
           }),
       );
@@ -980,21 +1159,23 @@
         stats();
         status.textContent = "全ハンドを未入力へ戻しました。";
       };
+      frequency.addEventListener("input", updateFrequencyControls);
+      secondaryFrequency.addEventListener("input", updateFrequencyControls);
+
       applyFrequencyBtn.onclick = () => {
-        const v = Math.max(0, Math.min(100, Number(frequency.value)));
         if (!selected.size) {
           status.textContent = "先にセルを選択してください。";
           return;
         }
-        selected.forEach((h) => {
-          if (data[h].action === "unset" && v > 0) data[h].action = active;
-          data[h].frequency = v;
-          if (v === 0 && !data[h].action.startsWith("mix_")) {
-            data[h].action = "unset";
-          }
-          render(h);
-        });
-        stats();
+        if (!isMixedAction(active)) {
+          status.textContent =
+            "頻度はRaise / Foldなどの混合アクションでのみ使用します。";
+          return;
+        }
+
+        selected.forEach((h) => apply(h, active));
+        updateFrequencyControls();
+        status.textContent = `選択中の${selected.size}ハンドへ混合頻度を適用しました。`;
       };
       function title(position, name) {
         const n = name.trim() || "名称未設定";
@@ -1034,10 +1215,11 @@
         Object.keys(data).forEach((h) => {
           const s = p.hands?.[h] || { action: "unset", frequency: 0 },
             a = s.action === "mix" ? "mix_raise_call" : s.action;
-          data[h] = {
+          data[h] = normalizeHandData({
             action: a || "unset",
-            frequency: Number(s.frequency || 0),
-          };
+            frequency: Number(s.frequency ?? 0),
+            secondaryFrequency: Number(s.secondaryFrequency ?? 0),
+          });
           render(h);
         });
         stats();
@@ -1420,30 +1602,34 @@
               d = data[h],
               x = pad + c * (cell + gap),
               y = pad + head + r * (cell + gap);
-            const frequencyValue = Math.max(
-              0,
-              Math.min(100, Number(d.frequency || 0)),
-            );
+            const normalized = normalizeHandData(d);
+            const frequencyValue = normalized.frequency;
+            const secondaryValue = normalized.secondaryFrequency;
 
-            if (mixed[d.action]) {
-              const [primaryColor, secondaryColor] = mixed[d.action];
+            if (normalized.action === "mix_raise_call_fold") {
+              const raiseWidth = (cell * frequencyValue) / 100;
+              const callWidth = (cell * secondaryValue) / 100;
+              ctx.fillStyle = colors.raise;
+              ctx.fillRect(x, y, raiseWidth, cell);
+              ctx.fillStyle = colors.call;
+              ctx.fillRect(x + raiseWidth, y, callWidth, cell);
+              ctx.fillStyle = colors.fold;
+              ctx.fillRect(
+                x + raiseWidth + callWidth,
+                y,
+                cell - raiseWidth - callWidth,
+                cell,
+              );
+            } else if (mixed[normalized.action]) {
+              const [primaryColor, secondaryColor] = mixed[normalized.action];
               const primaryWidth = (cell * frequencyValue) / 100;
               ctx.fillStyle = primaryColor;
               ctx.fillRect(x, y, primaryWidth, cell);
               ctx.fillStyle = secondaryColor;
               ctx.fillRect(x + primaryWidth, y, cell - primaryWidth, cell);
-            } else if (d.action === "unset" || frequencyValue <= 0) {
-              ctx.fillStyle = colors.unset;
-              ctx.fillRect(x, y, cell, cell);
-            } else if (frequencyValue >= 100) {
-              ctx.fillStyle = colors[d.action] || colors.unset;
-              ctx.fillRect(x, y, cell, cell);
             } else {
-              const actionWidth = (cell * frequencyValue) / 100;
-              ctx.fillStyle = colors[d.action] || colors.unset;
-              ctx.fillRect(x, y, actionWidth, cell);
-              ctx.fillStyle = colors.unset;
-              ctx.fillRect(x + actionWidth, y, cell - actionWidth, cell);
+              ctx.fillStyle = colors[normalized.action] || colors.unset;
+              ctx.fillRect(x, y, cell, cell);
             }
             ctx.strokeStyle = "#64748b";
             ctx.strokeRect(x + 0.5, y + 0.5, cell - 1, cell - 1);
@@ -1471,6 +1657,7 @@
       }
       setPriorActions();
       createGrid();
+      updateFrequencyControls();
       stats();
       initializeSavedRanges();
     </script>
